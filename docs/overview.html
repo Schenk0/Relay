@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay project outline</title>
+<style>
+:root{color-scheme:dark;font-family:var(--font-sans,system-ui,sans-serif);color:var(--foreground,#fff)}
+*{box-sizing:border-box}html,body{margin:0}main{padding:4px 0 12px}h1{font-size:24px;line-height:1.2;margin:0 0 6px;font-weight:650;letter-spacing:-.6px}p{margin:0;line-height:1.45}.intro{font-size:14px;margin-bottom:22px;color:var(--muted-foreground,#aaa)}
+.clients{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.client{border-top:2px solid var(--border,#444);padding-top:10px}.client svg{width:24px;height:24px;display:block;margin-bottom:8px;stroke:var(--foreground,#fff);fill:none;stroke-width:1.6}.client b{display:block;font-size:16px;margin-bottom:4px}.client p{font-size:13px;color:var(--muted-foreground,#aaa)}
+.arrows{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;font-size:28px;line-height:42px;color:var(--chart-2,#8acbb7)}
+.inbox{background:var(--secondary,#171717);padding:16px;text-align:center;border:1px solid var(--border,#444);border-radius:var(--radius,8px)}.inbox strong{display:block;font-size:18px;margin-bottom:5px}.inbox p{font-size:13px}.note{font-size:12px;color:var(--muted-foreground,#aaa);text-align:center;margin:9px 0 22px}
+h2{font-size:15px;margin:0 0 9px;font-weight:650}.steps{display:flex;align-items:center;gap:9px;font-size:13px;line-height:1.5}.steps span{color:var(--chart-2,#8acbb7)}.detail{font-size:12px;color:var(--muted-foreground,#aaa);margin-top:5px}
+.build{margin-top:20px;padding-top:13px;border-top:1px solid var(--border,#444);display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px}.build small{display:block;color:var(--muted-foreground,#aaa);margin-top:3px}.num{font-family:var(--font-mono,monospace);color:var(--chart-2,#8acbb7);margin-right:5px}.foot{font-size:11px;color:var(--muted-foreground,#aaa);margin-top:16px}
+@media(max-width:460px){.clients{gap:9px}.client b{font-size:14px}.client p{font-size:12px}.steps{flex-wrap:wrap;gap:5px}.build{gap:8px;font-size:12px}.intro{font-size:13px}.inbox strong{font-size:16px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Relay</h1>
+<p class="intro">Text, links, images, files. Between your devices, both ways.</p>
+<div class="clients" aria-label="Three clients that all send and receive">
+<section class="client"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="1.5" width="12" height="21" rx="2.5"/><path d="M10 4h4M10 20h4"/></svg><b>iPhone</b><p>Share → Relay<br>Open inbox to receive</p></section>
+<section class="client"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="13" rx="1.5"/><path d="M8 21h8M12 16v5"/></svg><b>Mac</b><p>Drop or send clipboard<br>Receive in a small shelf</p></section>
+<section class="client"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 8h20M5 5.5h1M8 5.5h1"/></svg><b>Any browser</b><p>Upload, paste, download<br>Remote machines included</p></section>
+</div>
+<div class="arrows" aria-label="All clients transfer in both directions"><span>↕</span><span>↕</span><span>↕</span></div>
+<section class="inbox"><strong>One temporary inbox, over the internet</strong><p>Works across networks. Holds items while a device is offline.</p><p>Planned: end-to-end encryption · automatic expiry · explicit Save</p></section>
+<p class="note">Proposed default: expire after 24 hours. Saved copies stay yours.</p>
+<section><h2>On a remote machine</h2><div class="steps">Open browser <span>→</span> Approve session on your device <span>→</span> Send or receive <span>→</span> End session</div><p class="detail">That session sees only its transfers, never your full inbox. No installation.</p></section>
+<div class="build" aria-label="Build order"><div><span class="num">01</span>Web + delivery<small>Replace emailing files</small></div><div><span class="num">02</span>Mac companion<small>Drop, copy, drag out</small></div><div><span class="num">03</span>iPhone companion<small>Share action + inbox</small></div></div>
+<p class="foot">Project outline, not a working app. iPhone background delivery is best effort; opening the app checks for items.</p>
+</main>
+</body>
+</html>
