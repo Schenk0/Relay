@@ -1,0 +1,11 @@
+# Public ingress on gateway's existing Caddy gateway. The app stays on service-host.
+relay.example.com {
+    reverse_proxy https://service.example.ts.net {
+        header_up Host service.example.ts.net
+        # Replace incoming forwarded addresses before the trusted Tailscale hop.
+        header_up X-Forwarded-For {remote_host}
+        transport http {
+            tls_server_name service.example.ts.net
+        }
+    }
+}

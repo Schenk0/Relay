@@ -348,3 +348,44 @@ test("file-size boundary and encrypted persistence across service restarts", asy
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("rate limits use forwarded IPs only through explicitly trusted proxies", async () => {
+  const dir = mkdtempSync(`${tmpdir()}/relay-proxy-`);
+  const app = await createService({
+    dataDir: dir,
+    setupSecret: "a-test-setup-secret-at-least-24-chars",
+    trustedProxies: ["127.0.0.1"],
+  });
+  try {
+    const attempt = (remoteAddress: string, forwarded: string) =>
+      app.inject({
+        method: "POST",
+        url: "/api/setup",
+        remoteAddress,
+        headers: { "x-forwarded-for": forwarded },
+        payload: {
+          secret: "an-incorrect-setup-secret-with-24-chars",
+          name: "Test",
+        },
+      });
+    for (let i = 0; i < 5; i++)
+      assert.equal(
+        (await attempt("127.0.0.1", "198.51.100.10")).statusCode,
+        403,
+      );
+    assert.equal((await attempt("127.0.0.1", "198.51.100.10")).statusCode, 429);
+    assert.equal((await attempt("127.0.0.1", "198.51.100.11")).statusCode, 403);
+    for (let i = 0; i < 5; i++)
+      assert.equal(
+        (await attempt("203.0.113.20", `198.51.100.${30 + i}`)).statusCode,
+        403,
+      );
+    assert.equal(
+      (await attempt("203.0.113.20", "198.51.100.99")).statusCode,
+      429,
+    );
+  } finally {
+    await app.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

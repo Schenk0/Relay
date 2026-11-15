@@ -3,6 +3,8 @@ services:
   relay:
     build: .
     image: relay:local
+    environment:
+      RELAY_TRUSTED_PROXIES: "loopback,uniquelocal,203.0.113.20/32"
     init: true
     restart: unless-stopped
     ports:

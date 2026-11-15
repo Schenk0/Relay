@@ -17,6 +17,9 @@ const app = await createService({
   dataDir,
   setupSecret,
   webRoot: path.resolve("apps/web/dist"),
+  trustedProxies: process.env.RELAY_TRUSTED_PROXIES?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
 });
 await app.listen({
   host: process.env.RELAY_HOST ?? "127.0.0.1",

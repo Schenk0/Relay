@@ -46,6 +46,7 @@ export async function createService(options: {
   setupSecret: string;
   now?: () => number;
   webRoot?: string;
+  trustedProxies?: string[];
 }) {
   const now = options.now ?? Date.now;
   mkdirSync(options.dataDir, { recursive: true, mode: 0o700 });
@@ -58,6 +59,7 @@ export async function createService(options: {
     CREATE INDEX IF NOT EXISTS transfer_expiry ON transfers(expiresAt);`);
   const app = Fastify({
     logger: false,
+    trustProxy: options.trustedProxies ?? false,
     bodyLimit: FILE_LIMIT + 28,
     requestTimeout: 120_000,
   });
