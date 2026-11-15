@@ -38,6 +38,8 @@ The mobile layout was subsequently split into native Send, Inbox, and Connection
 
 The Mac layout was then compacted: the menu panel uses content-based height, a bounded scrolling list, an opaque background, and no duplicate navigation header. Its text field expands from one to four visible lines. Mac and iPhone Release builds passed, the installed Mac bundle passed deep signature verification, and the restarted Mac app retained its inbox connection. Computer-use checks confirmed multiline entry and clearing the field without sending verification content. The iPhone UI was not changed or reinstalled for this Mac-only change.
 
+Mobile keyboard follow-up: connection status and the size limit moved from the footer into the navigation header on all tabs. The keyboard accessory was removed; Done now uses the native navigation toolbar. On Shared iPhone 17 Pro, the software keyboard was shown and the header stayed clear of it. Tapping blank content dismissed the keyboard and preserved the draft; tapping inside the editor reopened it normally. The iPhone Release and Mac Release builds passed, and the signed mobile update was installed wirelessly.
+
 The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
 
 The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.

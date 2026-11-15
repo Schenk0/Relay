@@ -48,6 +48,7 @@ struct RelayView: View {
   @Environment(\.openWindow) private var openWindow
   @State private var text = ""
   @FocusState private var composing: Bool
+  @State private var editorBounds: CGRect = .null
   @State private var code = ""
   @State private var tab = 0
   @State private var importing = false
@@ -126,24 +127,19 @@ struct RelayView: View {
         }
       } else {
         TabView(selection: $tab) {
-          mobileScreen("Send") {
-            ScrollView { composer }.scrollDismissesKeyboard(.interactively)
-            connectionStatus
-          }
-          .tabItem { Label("Send", systemImage: "paperplane") }
-          .tag(0)
+          mobileScreen("Send") { mobileComposer }
+            .tabItem { Label("Send", systemImage: "paperplane") }
+            .tag(0)
 
-          mobileScreen("Inbox") {
-            receivedItems
-            connectionStatus
-          }
-          .tabItem { Label("Inbox", systemImage: "tray") }
-          .tag(1)
+          mobileScreen("Inbox") { receivedItems }
+            .tabItem { Label("Inbox", systemImage: "tray") }
+            .tag(1)
 
           mobileScreen("Connections") { connections }
             .tabItem { Label("Connections", systemImage: "link") }
             .tag(2)
         }
+        .onChange(of: tab) { _, _ in composing = false }
       }
     #else
       if isMenuBar {
@@ -190,6 +186,18 @@ struct RelayView: View {
     }
   #endif
   #if os(iOS)
+    private var mobileComposer: some View {
+      ScrollView { composer }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .scrollDismissesKeyboard(.interactively)
+        .coordinateSpace(name: "RelaySend")
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+          SpatialTapGesture(coordinateSpace: .named("RelaySend")).onEnded { tap in
+            if !editorBounds.contains(tap.location) { composing = false }
+          }
+        )
+    }
     private func mobileScreen<Content: View>(
       _ title: String, @ViewBuilder content: () -> Content
     ) -> some View {
@@ -200,8 +208,24 @@ struct RelayView: View {
         }
         .navigationTitle(title)
         .toolbar {
-          ToolbarItem {
+          ToolbarItem(placement: .topBarLeading) {
+            VStack(alignment: .leading, spacing: 2) {
+              HStack(spacing: 4) {
+                Circle().fill(model.connected ? .green : .gray).frame(width: 5, height: 5)
+                Text(model.connected ? "Connected" : "Connecting")
+              }
+              Text("25 MiB per file").foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+            .fixedSize()
+            .onTapGesture { composing = false }
+          }
+          ToolbarItemGroup(placement: .topBarTrailing) {
+            if composing {
+              Button("Done") { composing = false }
+            }
             Button {
+              composing = false
               model.perform { await model.tick() }
             } label: {
               Image(systemName: "arrow.clockwise")
@@ -306,15 +330,12 @@ struct RelayView: View {
           .accessibilityLabel("Text or a link")
       #else
         TextEditor(text: $text).accessibilityLabel("Text or a link")
-          #if os(iOS)
-            .focused($composing)
-            .toolbar {
-              ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { composing = false }
-              }
-            }
-          #endif
+          .focused($composing)
+          .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .named("RelaySend"))
+          } action: { bounds in
+            editorBounds = bounds
+          }
           .frame(height: 160)
           .scrollContentBackground(.hidden).overlay(
             alignment: .topLeading

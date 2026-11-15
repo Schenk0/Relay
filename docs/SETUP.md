@@ -77,6 +77,8 @@ The Mac menu panel fits its content instead of using a fixed tall window. It sho
 
 On iPhone, the native tab bar has **Send**, **Inbox**, and **Connections**. Send opens by default, keeps its draft when switching tabs, and contains the text editor, file picker, clipboard, and destination selector. Inbox contains received items and their preview, copy, export, and share actions. Connections contains device approvals and recovery settings. The Mac keeps its combined send/inbox view and top selector.
 
+Connection status and the file-size limit appear in the mobile navigation header beside Refresh. While editing a message, Done appears in that same native navigation bar. Tap Done, tap outside the editor, or swipe the content to dismiss the keyboard without losing the draft.
+
 Share text, links, images, or files through **Share → Relay**. If Relay is hidden, enable it in the share sheet's More list. The extension queues encrypted content before attempting upload. If interrupted or offline, open Relay to finish. The main app supports receiving, copy, Files export, previews, and onward sharing.
 
 The Mac share extension uses the same shared Keychain and outbox container as the Mac app. A correctly signed app and extension are required for shared-container access. Simulator builds used for Keychain verification must also be signed; `CODE_SIGNING_ALLOWED=NO` verifies compilation only. Incoming iPhone items refresh when the native app opens; APNs notifications and background receipt remain unimplemented.
