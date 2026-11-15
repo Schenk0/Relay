@@ -20,7 +20,7 @@ pnpm build
 pnpm start
 ```
 
-Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. Relay is deployed privately on service-host at `https://service.example.ts.net` through Tailscale Serve; see [service-host access and operations](docs/service-host.md). A separate public-host deployment with Caddy is also included.
+Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. The live deployment is [relay.example.com](http://127.0.0.1:4318), with the app and data on service-host and public HTTPS through the existing gateway Caddy gateway. Relay's device approval protects the inbox. See [service-host access and operations](docs/service-host.md).
 
 ## What's built
 

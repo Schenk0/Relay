@@ -26,11 +26,13 @@ Open `http://127.0.0.1:4318`. Outside loopback, serve HTTPS. The native apps rej
 
 ## service-host
 
-The live private deployment is at `https://service.example.ts.net`. Connect your client to Tailscale and restore the private recovery file from `~/.config/relay/service-host-recovery.json` on the maintainer's Mac using the web app's recovery-file picker. Then approve additional devices from Connections. See [service-host operations](service-host.md).
+The live deployment is at `http://127.0.0.1:4318`, accessible without Tailscale. Restore `~/.config/relay/owner-recovery.json` on the maintainer's Mac using the web app's recovery-file picker, then approve additional devices from Connections. The recovery file contains private credentials and the inbox encryption key; do not share it with remote machines. Use temporary-session pairing there instead.
+
+The original private endpoint `https://service.example.ts.net` and its `~/.config/relay/service-host-recovery.json` recovery file remain available on Tailscale. Both URLs reach the same inbox, but browsers store credentials separately for each origin. See [service-host operations](service-host.md).
 
 ## Separate public internet service
 
-For a separate public deployment, use a dedicated host and DNS name. The service-host deployment uses private Tailscale Serve instead of this public Caddy configuration.
+For a separate public deployment, use a dedicated host and DNS name. The live service-host deployment instead uses the existing gateway gateway described in [service-host operations](service-host.md).
 
 1. Point your hostname's DNS at the host. Allow inbound TCP 80 and 443.
 2. Copy `.env.example` to `.env`, set `RELAY_DOMAIN`, and set a random `RELAY_SETUP_SECRET` of at least 24 characters. Generate one with `openssl rand -base64 32`.
