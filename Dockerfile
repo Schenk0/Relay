@@ -10,7 +10,7 @@ RUN pnpm prune --prod
 FROM node:24-bookworm-slim
 ENV NODE_ENV=production RELAY_HOST=0.0.0.0 RELAY_DATA_DIR=/data PORT=4318
 WORKDIR /app
-RUN mkdir /data && chown node:node /data
+RUN mkdir -m 0700 /data && chown node:node /data
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/apps/server ./apps/server
 COPY --from=build --chown=node:node /app/packages ./packages

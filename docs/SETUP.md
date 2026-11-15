@@ -24,9 +24,13 @@ pnpm start
 
 Open `http://127.0.0.1:4318`. Outside loopback, serve HTTPS. The native apps reject insecure remote service URLs; browser encryption also requires a secure context.
 
-## Internet service
+## service-host
 
-Use a dedicated host and DNS name. This repository does not provision, publish, or modify an existing server.
+The live private deployment is at `https://service.example.ts.net`. Connect your client to Tailscale and restore the private recovery file from `~/.config/relay/service-host-recovery.json` on the maintainer's Mac using the web app's recovery-file picker. Then approve additional devices from Connections. See [service-host operations](service-host.md).
+
+## Separate public internet service
+
+For a separate public deployment, use a dedicated host and DNS name. The service-host deployment uses private Tailscale Serve instead of this public Caddy configuration.
 
 1. Point your hostname's DNS at the host. Allow inbound TCP 80 and 443.
 2. Copy `.env.example` to `.env`, set `RELAY_DOMAIN`, and set a random `RELAY_SETUP_SECRET` of at least 24 characters. Generate one with `openssl rand -base64 32`.

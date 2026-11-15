@@ -20,7 +20,7 @@ pnpm build
 pnpm start
 ```
 
-Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. A Docker Compose deployment with Caddy is included; it has not been deployed anywhere.
+Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. Relay is deployed privately on service-host at `https://service.example.ts.net` through Tailscale Serve; see [service-host access and operations](docs/service-host.md). A separate public-host deployment with Caddy is also included.
 
 ## What's built
 

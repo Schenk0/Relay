@@ -1,6 +1,6 @@
 # Verification
 
-Checked locally on 15 November 2026. No production service, database, or daily-driver channel was used.
+Initial build checks ran locally on 15 November 2026 without production data. The later authorized service-host deployment is recorded below.
 
 ## Automated
 
@@ -30,10 +30,15 @@ Verified on the iOS 27.0 simulator:
 
 Physical-iPhone installation and the signed Mac distribution flow need your Apple team and provisioning. The Mac app and extension have been compiled; the full signed Mac UI, global shortcut, incoming panel, and drag-out workflow have not been driven end to end. Compilation is not evidence that those OS integrations have been exercised.
 
-No public HTTPS service has been deployed. Internet routing, DNS, certificate issuance, hosting cost, and transfers across actual different networks remain deployment checks. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol.
+The live deployment now uses private Tailscale HTTPS. Public internet exposure has not been configured; access from machines outside the tailnet remains outside this deployment. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol.
 
-Docker Compose files are supplied, but an active Docker daemon was unavailable on this machine, so the container image was not built or run here. The same application build and service were tested directly on Node.
+The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.
 
 APNs and iPhone background delivery are not implemented. Phone receipt is reconciled when the app opens. The cryptographic format is interoperable, but the product has not undergone independent security review or adversarial penetration testing.
 
 The automation session and Device panel were closed after testing, the previously stopped shared simulator was shut down again, and the isolated verification service was stopped. Existing simulator data and the test installation were preserved. One generated PNG was added to Photos for the share test; existing photos were left intact.
+
+
+## service-host deployment
+
+The dedicated Docker service was deployed with a read-only root filesystem, unprivileged app user, capability restrictions, persistent database volume, and resource limits. Private Tailscale HTTPS was enabled without changing T3 or SSH routes. Live client checks verified encryption, binary integrity, transfers in both directions, restart persistence, restricted-session isolation, and revocation. Verification transfers were removed, and the personal inbox remains initialized for use with its privately saved recovery file.
