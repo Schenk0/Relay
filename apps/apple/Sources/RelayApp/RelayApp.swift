@@ -401,26 +401,7 @@ struct RelayView: View {
           }
           Spacer()
           Menu {
-            Button("Preview") { model.perform { previewURL = try await model.download(item) } }
-            if item.info.kind == "text" {
-              Button("Copy text") { model.perform { try await model.copy(item) } }
-            }
-            Button("Save a copy") {
-              model.perform {
-                let url = try await model.download(item)
-                fileToSave = RelayDocument(data: try Data(contentsOf: url))
-                saveName = url.lastPathComponent
-                saving = true
-              }
-            }
-            #if os(iOS)
-              Button("Share") {
-                model.perform { sharingURL = SharedFile(url: try await model.download(item)) }
-              }
-            #endif
-            Button("Delete from Relay", role: .destructive) {
-              model.perform { try await model.remove(item) }
-            }
+            itemActions(item)
           } label: {
             Image(systemName: "ellipsis")
           }.menuStyle(.borderlessButton)
@@ -443,9 +424,38 @@ struct RelayView: View {
               }
               return provider
             }
+            .contextMenu { itemActions(item) }
           #endif
           .accessibilityElement(children: .contain)
       }.listStyle(.plain)
+    }
+  }
+  @ViewBuilder private func itemActions(_ item: RelayItem) -> some View {
+    Button("Preview") { model.perform { previewURL = try await model.download(item) } }
+    if item.info.kind == "text" {
+      Button("Copy text") { model.perform { try await model.copy(item) } }
+    }
+    #if os(macOS)
+      if item.info.kind == "file" {
+        Button("Copy file") { model.perform { try await model.copyFile(item) } }
+          .disabled(model.busy)
+      }
+    #endif
+    Button("Save a copy") {
+      model.perform {
+        let url = try await model.download(item)
+        fileToSave = RelayDocument(data: try Data(contentsOf: url))
+        saveName = url.lastPathComponent
+        saving = true
+      }
+    }
+    #if os(iOS)
+      Button("Share") {
+        model.perform { sharingURL = SharedFile(url: try await model.download(item)) }
+      }
+    #endif
+    Button("Delete from Relay", role: .destructive) {
+      model.perform { try await model.remove(item) }
     }
   }
   private var connectionStatus: some View {

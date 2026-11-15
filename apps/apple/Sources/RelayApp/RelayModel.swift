@@ -216,6 +216,18 @@ import UniformTypeIdentifiers
     #endif
     notice = "Copied to clipboard."
   }
+  #if os(macOS)
+    /// Publish the decrypted local file as a file URL so other apps can paste its contents.
+    func copyFile(_ item: RelayItem) async throws {
+      let url = try await download(item)
+      let pasteboard = NSPasteboard.general
+      pasteboard.clearContents()
+      guard pasteboard.writeObjects([url as NSURL]) else {
+        throw RelayError.message("Could not copy the file to the clipboard.")
+      }
+      notice = "File copied to clipboard."
+    }
+  #endif
   func download(_ item: RelayItem) async throws -> URL {
     guard let identity else { throw RelayError.message("Connect first.") }
     let data = try await RelayAPI(identity: identity).download(item)

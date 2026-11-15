@@ -40,6 +40,8 @@ The Mac layout was then compacted: the menu panel uses content-based height, a b
 
 Mobile keyboard follow-up: connection status and the size limit moved from the footer into the navigation header on all tabs. The keyboard accessory was removed; Done now uses the native navigation toolbar. On Shared iPhone 17 Pro, the software keyboard was shown and the header stayed clear of it. Tapping blank content dismissed the keyboard and preserved the draft; tapping inside the editor reopened it normally. The iPhone Release and Mac Release builds passed, and the signed mobile update was installed wirelessly.
 
+Mac file clipboard: added **Copy file** for file/image items and a standard right-click actions menu. A dedicated 4 KiB binary verification upload was copied through the installed app's native item menu and pasted with Command-V into an isolated Finder folder. The resulting file retained its original filename and matched every source byte. The verification upload was removed and existing user uploads were preserved. Signed Mac and iPhone Release builds passed; the installed Mac bundle passed deep signature verification. The iPhone app was not changed or reinstalled.
+
 The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
 
 The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.
