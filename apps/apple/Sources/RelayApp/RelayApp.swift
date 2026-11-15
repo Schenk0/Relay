@@ -21,8 +21,9 @@ private struct SharedFile: Identifiable {
     @NSApplicationDelegateAdaptor(RelayDelegate.self) var delegate
     var body: some Scene {
       Window("Relay", id: "inbox") {
-        RelayView(model: model).frame(minWidth: 520, minHeight: 600).preferredColorScheme(.dark)
+        RelayView(model: model).frame(minWidth: 460, minHeight: 420).preferredColorScheme(.dark)
       }
+      .defaultSize(width: 560, height: 520)
       .commands {
         CommandGroup(after: .pasteboard) {
           Button("Send clipboard to Relay") { model.perform { try await model.sendClipboard() } }
@@ -30,7 +31,9 @@ private struct SharedFile: Identifiable {
         }
       }
       MenuBarExtra("Relay", systemImage: "dot.radiowaves.left.and.right") {
-        RelayView(model: model).frame(width: 560, height: 680).preferredColorScheme(.dark)
+        RelayView(model: model, isMenuBar: true)
+          .frame(width: 460).fixedSize(horizontal: false, vertical: true)
+          .preferredColorScheme(.dark)
       }.menuBarExtraStyle(.window)
     }
   #else
@@ -40,6 +43,7 @@ private struct SharedFile: Identifiable {
 
 struct RelayView: View {
   @Bindable var model: RelayModel
+  var isMenuBar = false
   @Environment(\.scenePhase) private var phase
   @Environment(\.openWindow) private var openWindow
   @State private var text = ""
@@ -142,45 +146,49 @@ struct RelayView: View {
         }
       }
     #else
-      NavigationStack {
-        VStack(spacing: 0) {
-          messages
-          if model.identity == nil {
-            onboarding
-          } else {
-            Picker("Section", selection: $tab) {
-              Text("Inbox").tag(0)
-              Text("Connections").tag(1)
-            }.pickerStyle(.segmented).padding()
-            if tab == 0 { inbox } else { connections }
-          }
-          #if os(macOS)
-            Divider()
-            HStack {
-              Button("Open inbox window") {
-                openWindow(id: "inbox")
-                NSApp.activate(ignoringOtherApps: true)
-              }
-              Spacer()
-              Button("Quit Relay") { NSApp.terminate(nil) }
-            }.font(.callout).padding(12)
-          #endif
-        }
-        .navigationTitle("Relay")
-        .toolbar {
-          if model.identity != nil {
-            ToolbarItem {
-              Button {
-                model.perform { await model.tick() }
-              } label: {
-                Image(systemName: "arrow.clockwise")
-              }.accessibilityLabel("Refresh")
-            }
-          }
+      if isMenuBar {
+        macContent
+          .background(Color(nsColor: .windowBackgroundColor))
+      } else {
+        NavigationStack {
+          macContent.navigationTitle("Relay")
         }
       }
     #endif
   }
+  #if os(macOS)
+    private var macContent: some View {
+      VStack(spacing: 0) {
+        messages
+        if model.identity == nil {
+          onboarding.frame(height: isMenuBar ? 330 : nil)
+        } else {
+          HStack {
+            Picker("Section", selection: $tab) {
+              Text("Inbox").tag(0)
+              Text("Connections").tag(1)
+            }.pickerStyle(.segmented).labelsHidden().frame(width: 220)
+            Spacer()
+            Button {
+              model.perform { await model.tick() }
+            } label: {
+              Image(systemName: "arrow.clockwise")
+            }.buttonStyle(.plain).accessibilityLabel("Refresh")
+          }.padding(.horizontal, 12).padding(.vertical, 8)
+          if tab == 0 { inbox } else { connections.frame(height: isMenuBar ? 420 : nil) }
+        }
+        Divider()
+        HStack {
+          Button("Open inbox window") {
+            openWindow(id: "inbox")
+            NSApp.activate(ignoringOtherApps: true)
+          }
+          Spacer()
+          Button("Quit Relay") { NSApp.terminate(nil) }
+        }.font(.callout).padding(.horizontal, 12).padding(.vertical, 8)
+      }
+    }
+  #endif
   #if os(iOS)
     private func mobileScreen<Content: View>(
       _ title: String, @ViewBuilder content: () -> Content
@@ -259,19 +267,30 @@ struct RelayView: View {
     VStack(spacing: 0) {
       composer
       Divider()
-      receivedItems
+      receivedItems.frame(height: isMenuBar ? menuListHeight : nil)
       connectionStatus
     }
   }
-  private var composerHeight: CGFloat {
-    #if os(iOS)
-      160
+  // Let short inboxes shrink the menu; longer inboxes scroll instead of extending off-screen.
+  private var menuListHeight: CGFloat {
+    model.items.isEmpty ? 110 : CGFloat(min(model.items.count, 6)) * 52
+  }
+  private var contentPadding: CGFloat {
+    #if os(macOS)
+      10
     #else
-      70
+      16
+    #endif
+  }
+  private var composerSpacing: CGFloat {
+    #if os(macOS)
+      8
+    #else
+      12
     #endif
   }
   private var composer: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: composerSpacing) {
       HStack {
         Text("Send to").foregroundStyle(.secondary)
         Picker("Destination", selection: $model.target) {
@@ -281,25 +300,33 @@ struct RelayView: View {
           }
         }.labelsHidden()
       }.font(.callout)
-      TextEditor(text: $text).accessibilityLabel("Text or a link")
-        #if os(iOS)
-          .focused($composing)
-          .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-              Spacer()
-              Button("Done") { composing = false }
+      #if os(macOS)
+        TextField("Text or a link", text: $text, axis: .vertical)
+          .textFieldStyle(.roundedBorder).lineLimit(1...4)
+          .accessibilityLabel("Text or a link")
+      #else
+        TextEditor(text: $text).accessibilityLabel("Text or a link")
+          #if os(iOS)
+            .focused($composing)
+            .toolbar {
+              ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { composing = false }
+              }
+            }
+          #endif
+          .frame(height: 160)
+          .scrollContentBackground(.hidden).overlay(
+            alignment: .topLeading
+          ) {
+            if text.isEmpty {
+              Text("Text or a link").foregroundStyle(.secondary).padding(.top, 8).padding(
+                .leading, 5
+              )
+              .allowsHitTesting(false)
             }
           }
-        #endif
-        .frame(height: composerHeight)
-        .scrollContentBackground(.hidden).overlay(
-          alignment: .topLeading
-        ) {
-          if text.isEmpty {
-            Text("Text or a link").foregroundStyle(.secondary).padding(.top, 8).padding(.leading, 5)
-              .allowsHitTesting(false)
-          }
-        }
+      #endif
       HStack {
         Button {
           importingRecovery = false
@@ -332,7 +359,7 @@ struct RelayView: View {
           .caption
         ).foregroundStyle(.secondary)
       }
-    }.padding()
+    }.padding(contentPadding)
   }
   @ViewBuilder private var receivedItems: some View {
     if model.items.isEmpty {
@@ -406,7 +433,7 @@ struct RelayView: View {
       Text(model.connected ? "Connected" : "Connecting")
       Spacer()
       Text("25 MiB per file")
-    }.font(.caption).foregroundStyle(.secondary).padding()
+    }.font(.caption).foregroundStyle(.secondary).padding(contentPadding)
   }
   private var connections: some View {
     Form {

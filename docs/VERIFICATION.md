@@ -36,6 +36,8 @@ The global clipboard shortcut's Carbon registration and event-handler installati
 
 The mobile layout was subsequently split into native Send, Inbox, and Connections tabs. On the reused Shared iPhone 17 Pro simulator, all three tabs opened, Inbox had no composer, and an unsent draft survived switching through Inbox and Connections back to Send. The Send editor's Done button dismissed the software keyboard and made the tab bar accessible again. iOS simulator, signed iPhone Release, and Mac Release builds passed. The updated signed iPhone app was installed wirelessly with its existing data preserved. The Mac retains its original combined inbox/composer layout.
 
+The Mac layout was then compacted: the menu panel uses content-based height, a bounded scrolling list, an opaque background, and no duplicate navigation header. Its text field expands from one to four visible lines. Mac and iPhone Release builds passed, the installed Mac bundle passed deep signature verification, and the restarted Mac app retained its inbox connection. Computer-use checks confirmed multiline entry and clearing the field without sending verification content. The iPhone UI was not changed or reinstalled for this Mac-only change.
+
 The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
 
 The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.
