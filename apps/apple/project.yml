@@ -27,6 +27,7 @@ targets:
         PRODUCT_NAME: Relay
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_LSUIElement: YES
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: RELAY_APP
         INFOPLIST_KEY_RelayAppGroup: $(DEVELOPMENT_TEAM).org.example.relay

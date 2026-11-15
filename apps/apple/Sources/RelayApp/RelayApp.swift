@@ -20,6 +20,11 @@ private struct SharedFile: Identifiable {
   #if os(macOS)
     @NSApplicationDelegateAdaptor(RelayDelegate.self) var delegate
     var body: some Scene {
+      MenuBarExtra("Relay", systemImage: "dot.radiowaves.left.and.right") {
+        RelayView(model: model, isMenuBar: true)
+          .frame(width: 460).fixedSize(horizontal: false, vertical: true)
+          .preferredColorScheme(.dark)
+      }.menuBarExtraStyle(.window)
       Window("Relay", id: "inbox") {
         RelayView(model: model).frame(minWidth: 460, minHeight: 420).preferredColorScheme(.dark)
       }
@@ -30,11 +35,6 @@ private struct SharedFile: Identifiable {
             .keyboardShortcut("r", modifiers: [.command, .option, .control])
         }
       }
-      MenuBarExtra("Relay", systemImage: "dot.radiowaves.left.and.right") {
-        RelayView(model: model, isMenuBar: true)
-          .frame(width: 460).fixedSize(horizontal: false, vertical: true)
-          .preferredColorScheme(.dark)
-      }.menuBarExtraStyle(.window)
     }
   #else
     var body: some Scene { WindowGroup { RelayView(model: model).preferredColorScheme(.dark) } }
