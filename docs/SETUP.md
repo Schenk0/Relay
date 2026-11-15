@@ -54,13 +54,28 @@ pnpm apple:generate
 open apps/apple/Relay.xcodeproj
 ```
 
-Choose `RelayMac` or `RelayIOS`. Set your development team on the app and matching share extension targets. Use matching app-group and shared Keychain entitlements. The default identifiers are `org.example.relay.mac`, `org.example.relay.ios`, and their `.share` extensions; the shared app group is `group.org.example.relay`. If these identifiers are unavailable in your Apple team, change them consistently in `project.yml` and the generated entitlements, then regenerate.
+Choose `RelayMac` or `RelayIOS`. The project uses the maintainer's existing the signing team team, ``, with automatic signing and app-group registration. For another developer, change `DEVELOPMENT_TEAM` in `project.yml`, then regenerate. The identifiers are `org.example.relay.mac`, `org.example.relay.ios`, and their `.share` extensions. iOS shares `group.org.example.relay`; macOS uses `$(DEVELOPMENT_TEAM).org.example.relay`. Each platform's app and extension use matching app-group and shared Keychain entitlements. Do not change these identifiers on an existing installation without migrating its credentials and queued uploads.
 
-On a physical iPhone, use your HTTPS service URL, not `127.0.0.1`. Loopback on a simulator can reach the Mac's local service for testing. Approve the displayed code on an existing personal device. The Mac provides a menu bar inbox, drag in/out, file picker, clipboard send, save, preview, and sharing. Its global clipboard shortcut is Control-Option-Command-R while Relay is running.
+Both apps default to `http://127.0.0.1:4318`. Browser approval does not automatically connect a native app. Open the native app, select **Connect personal device**, and approve its displayed code from Connections on an existing trusted client.
+
+On 15 November 2026, signed builds were installed at `/Applications/Relay.app` on the maintainer's Mac and directly on his already-paired iPhone over the wireless connection. USB was not required for installation. These are Apple Development builds for the maintainer's devices, not App Store, TestFlight, or notarized public distributions. The current signing certificate expires on 11 May 2027; renew the certificate and re-sign before then. The generated profiles expire on 15 November 2027, but do not extend the certificate's validity.
+
+To build updated signed versions:
+
+```sh
+xcodebuild -project apps/apple/Relay.xcodeproj -scheme RelayMac -configuration Release -derivedDataPath apps/apple/build -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+xcodebuild -project apps/apple/Relay.xcodeproj -scheme RelayIOS -configuration Release -destination 'id=YOUR_IPHONE_UDID' -derivedDataPath apps/apple/build-ios -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+```
+
+Quit Relay before replacing the Mac app bundle. Replace the whole bundle rather than copying over an existing one: leftover Debug files invalidate a Release signature. Check the installed bundle with `codesign --verify --deep --strict /Applications/Relay.app`. App data and Keychain credentials live outside that bundle.
+
+The connected iPhone can be installed with `xcrun devicectl device install app --device YOUR_IPHONE_UDID apps/apple/build-ios/Build/Products/Release-iphoneos/Relay.app`. Installation preserves its app data and Keychain credentials. Open the installed app on the phone; complete any iOS Developer Mode or trust requirements if prompted.
+
+On a physical iPhone, use your HTTPS service URL, not `127.0.0.1`. Loopback on a simulator can reach the Mac's local service for testing. The Mac opens its inbox on launch and also provides a menu bar inbox, drag in/out, file picker, clipboard send, save, preview, and sharing. Its global clipboard shortcut is Control-Option-Command-R while Relay is running. **Connections → Mac → Open Relay at login** is optional and initially off. Quit Relay from the inbox footer or application menu.
 
 On iPhone, share text, links, images, or files through **Share → Relay**. If Relay is hidden, enable it in the share sheet's More list. The extension queues encrypted content before attempting upload. If interrupted or offline, open Relay to finish. The main app supports receiving, copy, Files export, previews, and onward sharing.
 
-The Mac share extension uses the same shared Keychain and outbox container as the Mac app. A correctly signed app and extension are required for shared-container access. Builds made with signing disabled verify compilation only. Distribution to your physical iPhone requires your Apple signing setup; no TestFlight or App Store submission has been performed.
+The Mac share extension uses the same shared Keychain and outbox container as the Mac app. A correctly signed app and extension are required for shared-container access. Simulator builds used for Keychain verification must also be signed; `CODE_SIGNING_ALLOWED=NO` verifies compilation only. Incoming iPhone items refresh when the native app opens; APNs notifications and background receipt remain unimplemented.
 
 ## Checks
 

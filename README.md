@@ -40,7 +40,7 @@ pnpm apple:generate
 open apps/apple/Relay.xcodeproj
 ```
 
-Choose `RelayMac` or `RelayIOS`. Configure your Apple team and matching app-group and shared Keychain signing for the app and share extension. Enter your service URL and approve the displayed code from a trusted device. The Mac clipboard shortcut is Control-Option-Command-R while Relay is running.
+Choose `RelayMac` or `RelayIOS`. The project is configured for the maintainer's the signing team team and defaults to the live public service. Signed Release builds are installed on his Mac and iPhone; see [native setup and signing](docs/SETUP.md#apple-apps) for updating them or using another team. Approve each native app's displayed code from a trusted device. The Mac clipboard shortcut is Control-Option-Command-R while Relay is running.
 
 See [complete setup and deployment instructions](docs/SETUP.md).
 

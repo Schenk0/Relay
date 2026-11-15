@@ -20,9 +20,6 @@ private struct SharedFile: Identifiable {
   #if os(macOS)
     @NSApplicationDelegateAdaptor(RelayDelegate.self) var delegate
     var body: some Scene {
-      MenuBarExtra("Relay", systemImage: "dot.radiowaves.left.and.right") {
-        RelayView(model: model).frame(width: 560, height: 680).preferredColorScheme(.dark)
-      }.menuBarExtraStyle(.window)
       Window("Relay", id: "inbox") {
         RelayView(model: model).frame(minWidth: 520, minHeight: 600).preferredColorScheme(.dark)
       }
@@ -32,6 +29,9 @@ private struct SharedFile: Identifiable {
             .keyboardShortcut("r", modifiers: [.command, .option, .control])
         }
       }
+      MenuBarExtra("Relay", systemImage: "dot.radiowaves.left.and.right") {
+        RelayView(model: model).frame(width: 560, height: 680).preferredColorScheme(.dark)
+      }.menuBarExtraStyle(.window)
     }
   #else
     var body: some Scene { WindowGroup { RelayView(model: model).preferredColorScheme(.dark) } }
@@ -46,7 +46,7 @@ struct RelayView: View {
   @State private var code = ""
   @State private var tab = 0
   @State private var importing = false
-  @State private var restoring = false
+  @State private var importingRecovery = false
   @State private var previewURL: URL?
   @State private var sharingURL: SharedFile?
   @State private var fileToSave: RelayDocument?
@@ -86,6 +86,17 @@ struct RelayView: View {
           }.pickerStyle(.segmented).padding()
           if tab == 0 { inbox } else { connections }
         }
+        #if os(macOS)
+          Divider()
+          HStack {
+            Button("Open inbox window") {
+              openWindow(id: "inbox")
+              NSApp.activate(ignoringOtherApps: true)
+            }
+            Spacer()
+            Button("Quit Relay") { NSApp.terminate(nil) }
+          }.font(.callout).padding(12)
+        #endif
       }
       .navigationTitle("Relay")
       .toolbar {
@@ -101,10 +112,18 @@ struct RelayView: View {
       }
     }
     .fileImporter(
-      isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true
-    ) { result in model.perform { try await model.sendFiles(result.get()) } }
-    .fileImporter(isPresented: $restoring, allowedContentTypes: [.json]) { result in
-      model.perform { try model.restore(result.get()) }
+      isPresented: $importing,
+      allowedContentTypes: importingRecovery ? [.json] : [.item],
+      allowsMultipleSelection: !importingRecovery
+    ) { result in
+      model.perform {
+        let urls = try result.get()
+        if importingRecovery {
+          if let url = urls.first { try model.restore(url) }
+        } else {
+          try await model.sendFiles(urls)
+        }
+      }
     }
     .fileExporter(
       isPresented: $saving, document: fileToSave, contentType: .data, defaultFilename: saveName
@@ -122,17 +141,24 @@ struct RelayView: View {
         NSApp.activate(ignoringOtherApps: true)
       }
     #endif
-    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RelaySendClipboard"))) {
-      _ in model.perform { try await model.sendClipboard() }
-    }
     .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
-      for provider in providers {
-        _ = provider.loadObject(ofClass: URL.self) { url, _ in
-          guard let url else { return }
-          Task { @MainActor in model.perform { try await model.sendFiles([url]) } }
+      guard !providers.isEmpty, !model.busy else { return false }
+      // Keep the whole drop in one operation; separate callbacks can hit the busy guard.
+      model.perform {
+        var urls: [URL] = []
+        for provider in providers {
+          let url: URL = try await withCheckedThrowingContinuation { continuation in
+            _ = provider.loadObject(ofClass: URL.self) { url, error in
+              if let error { continuation.resume(throwing: error) }
+              else if let url { continuation.resume(returning: url) }
+              else { continuation.resume(throwing: RelayError.message("Could not read the dropped file.")) }
+            }
+          }
+          urls.append(url)
         }
+        try await model.sendFiles(urls)
       }
-      return !providers.isEmpty
+      return true
     }
   }
   private var onboarding: some View {
@@ -154,7 +180,10 @@ struct RelayView: View {
           Button("Connect personal device") { model.perform { try await model.connect() } }
             .disabled(model.busy || model.deviceName.isEmpty)
         }
-        Button("Restore recovery file") { restoring = true }
+        Button("Restore recovery file") {
+          importingRecovery = true
+          importing = true
+        }
         Text("Set up your first device in the web app. Use HTTPS to connect over the internet.")
           .font(.caption).foregroundStyle(.secondary)
       }
@@ -172,7 +201,7 @@ struct RelayView: View {
             }
           }.labelsHidden()
         }.font(.callout)
-        TextEditor(text: $text).frame(height: 70).scrollContentBackground(.hidden).overlay(
+        TextEditor(text: $text).accessibilityLabel("Text or a link").frame(height: 70).scrollContentBackground(.hidden).overlay(
           alignment: .topLeading
         ) {
           if text.isEmpty {
@@ -182,11 +211,12 @@ struct RelayView: View {
         }
         HStack {
           Button {
+            importingRecovery = false
             importing = true
           } label: {
             Label("Files", systemImage: "plus")
-          }
-          Button("Clipboard") { model.perform { try await model.sendClipboard() } }
+          }.disabled(model.busy)
+          Button("Clipboard") { model.perform { try await model.sendClipboard() } }.disabled(model.busy)
           Spacer()
           Button("Send") {
             let value = text
@@ -253,12 +283,14 @@ struct RelayView: View {
             } label: {
               Image(systemName: "ellipsis")
             }.menuStyle(.borderlessButton)
+              .accessibilityLabel("Actions for \(item.info.name)")
           }.padding(.vertical, 6)
             #if os(macOS)
               .onDrag {
                 let provider = NSItemProvider()
+                provider.suggestedName = item.info.kind == "text" ? "Shared text.txt" : item.info.name
                 provider.registerFileRepresentation(
-                  forTypeIdentifier: UTType.data.identifier, fileOptions: [], visibility: .all
+                  forTypeIdentifier: (UTType(mimeType: item.info.type) ?? .data).identifier, fileOptions: [], visibility: .all
                 ) { completion in
                   Task { @MainActor in
                     do { completion(try await model.download(item), true, nil) } catch {
@@ -270,6 +302,7 @@ struct RelayView: View {
                 return provider
               }
             #endif
+            .accessibilityElement(children: .contain)
         }.listStyle(.plain)
       }
       HStack {
@@ -332,6 +365,13 @@ struct RelayView: View {
         }
         Button("Disconnect this device", role: .destructive) { model.disconnect() }
       }
+      #if os(macOS)
+        Section("Mac") {
+          Toggle("Open Relay at login", isOn: Binding(
+            get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+          Text("Send clipboard: Control-Option-Command-R").font(.caption)
+        }
+      #endif
     }.formStyle(.grouped)
   }
 }

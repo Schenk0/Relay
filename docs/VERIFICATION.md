@@ -28,7 +28,11 @@ Verified on the iOS 27.0 simulator:
 
 ## Remaining external verification
 
-Physical-iPhone installation and the signed Mac distribution flow need your Apple team and provisioning. The Mac app and extension have been compiled; the full signed Mac UI, global shortcut, incoming panel, and drag-out workflow have not been driven end to end. Compilation is not evidence that those OS integrations have been exercised.
+Signed Release builds and both share extensions now pass Xcode and signature validation. The Mac app is installed at `/Applications/Relay.app` and the iPhone app was installed wirelessly on the maintainer's already-paired physical iPhone. Physical-phone launch, pairing, and sharing still require the maintainer's participation; the automation Device panel lists simulators only and rejected the physical device ID.
+
+The installed Mac UI successfully paired to the public inbox, decrypted its metadata, uploaded text, and sent clipboard text. A native Files-button check reproduced a conflicting-file-importer bug; after combining recovery and upload into one importer, the chooser opened and uploaded the selected verification file. Authenticated downloads decrypted the native uploads correctly and confirmed one copy of each. The Mac kept its credential through app restarts. The reused iPhone simulator paired to the public service and displayed decrypted native-Mac items. Verification uploads were removed afterward; existing user uploads were preserved.
+
+The global clipboard shortcut's Carbon registration and event-handler installation both returned success. Synthetic input through the computer-use tool did not trigger that global handler, so a physical-keyboard check is still required. Incoming-panel timing, native Mac drag-out, Mac share-sheet integration, and the launch-at-login setting have not been fully driven end to end. The initial simulator share-sheet checks above remain the evidence for the iOS extension; the current simulator runner falls back to XCTest with limited access to remote extension UI.
 
 The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
 

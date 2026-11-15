@@ -14,7 +14,8 @@ settings:
     INFOPLIST_KEY_RelayAppGroup: group.org.example.relay
     INFOPLIST_KEY_RelayKeychainGroup: $(AppIdentifierPrefix)org.example.relay.shared
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: ''
+    REGISTER_APP_GROUPS: YES
+    DEVELOPMENT_TEAM: 
 targets:
   RelayMac:
     type: application
@@ -28,11 +29,12 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: RELAY_APP
+        INFOPLIST_KEY_RelayAppGroup: $(DEVELOPMENT_TEAM).org.example.relay
     entitlements:
       path: Config/Mac.entitlements
       properties:
         keychain-access-groups: [$(AppIdentifierPrefix)org.example.relay.shared]
-        com.apple.security.application-groups: [group.org.example.relay]
+        com.apple.security.application-groups: [$(DEVELOPMENT_TEAM).org.example.relay]
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
@@ -105,7 +107,7 @@ targets:
         CFBundleDisplayName: Relay
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        RelayAppGroup: group.org.example.relay
+        RelayAppGroup: $(DEVELOPMENT_TEAM).org.example.relay
         RelayKeychainGroup: $(AppIdentifierPrefix)org.example.relay.shared
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
@@ -124,7 +126,7 @@ targets:
       path: Config/MacShare.entitlements
       properties:
         keychain-access-groups: [$(AppIdentifierPrefix)org.example.relay.shared]
-        com.apple.security.application-groups: [group.org.example.relay]
+        com.apple.security.application-groups: [$(DEVELOPMENT_TEAM).org.example.relay]
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-only: true

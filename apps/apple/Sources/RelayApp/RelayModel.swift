@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -7,6 +8,7 @@ import UniformTypeIdentifiers
 #endif
 #if os(macOS)
   import AppKit
+  import ServiceManagement
 #else
   import UIKit
 #endif
@@ -35,7 +37,13 @@ import UniformTypeIdentifiers
   private var refreshing = false
   private var sending = false
   private var hasLoaded = false
+  @ObservationIgnored private var clipboardObserver: AnyCancellable?
   init() {
+    // One observer per model, even when the menu bar and inbox window are both visible.
+    clipboardObserver = NotificationCenter.default.publisher(for: Notification.Name("RelaySendClipboard"))
+      .sink { [weak self] _ in
+        self?.perform { [weak self] in try await self?.sendClipboard() }
+      }
     loop = Task { [weak self] in
       while !Task.isCancelled {
         await self?.tick()
@@ -98,6 +106,7 @@ import UniformTypeIdentifiers
       let api = RelayAPI(identity: identity)
       let devices = try await api.devices()
       let items = try await api.items(devices: devices)
+      guard self.identity?.id == identity.id else { return }
       let known = Set(self.items.map(\.id))
       if hasLoaded,
         let incoming = items.first(where: {
@@ -163,9 +172,9 @@ import UniformTypeIdentifiers
   func sendClipboard() async throws {
     #if os(macOS)
       if let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: nil)
-        as? [URL], !urls.isEmpty
+        as? [URL], !urls.filter(\.isFileURL).isEmpty
       {
-        try await sendFiles(urls)
+        try await sendFiles(urls.filter(\.isFileURL))
         return
       }
       if let image = NSPasteboard.general.data(forType: .png), let identity {
@@ -262,6 +271,9 @@ import UniformTypeIdentifiers
     items = []
     devices = []
     pending = nil
+    connected = false
+    hasLoaded = false
+    cleanPreviews()
     RelayStore.remove(account: "identity")
     RelayStore.remove(account: "pending")
   }
@@ -275,5 +287,18 @@ import UniformTypeIdentifiers
     }
     try RelayStore.save(value, account: "identity")
     identity = value
+    pending = nil
+    RelayStore.remove(account: "pending")
+    server = value.server
+    UserDefaults.standard.set(value.server, forKey: "relay-server")
   }
+  #if os(macOS)
+    var launchAtLogin: Bool { SMAppService.mainApp.status == .enabled }
+    func setLaunchAtLogin(_ enabled: Bool) {
+      do {
+        if enabled { try SMAppService.mainApp.register() }
+        else { try SMAppService.mainApp.unregister() }
+      } catch { self.error = error.localizedDescription }
+    }
+  #endif
 }
