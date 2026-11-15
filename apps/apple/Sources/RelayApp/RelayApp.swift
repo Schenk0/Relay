@@ -387,23 +387,17 @@ struct RelayView: View {
     } else {
       List(model.items) { item in
         HStack(spacing: 12) {
-          Image(
-            systemName: item.info.kind == "text"
-              ? "doc.text" : item.info.type.hasPrefix("image/") ? "photo" : "doc"
-          ).foregroundStyle(.secondary)
-          VStack(alignment: .leading, spacing: 4) {
-            Text(item.info.name).lineLimit(2)
-            Text(Date(timeIntervalSince1970: item.transfer.expiresAt / 1000), style: .relative)
-              .font(.caption).foregroundStyle(.secondary)
+          HStack(spacing: 12) {
+            Image(
+              systemName: item.info.kind == "text"
+                ? "doc.text" : item.info.type.hasPrefix("image/") ? "photo" : "doc"
+            ).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+              Text(item.info.name).lineLimit(2)
+              Text(Date(timeIntervalSince1970: item.transfer.expiresAt / 1000), style: .relative)
+                .font(.caption).foregroundStyle(.secondary)
+            }
           }
-          Spacer()
-          Menu {
-            itemActions(item)
-          } label: {
-            Image(systemName: "ellipsis")
-          }.menuStyle(.borderlessButton)
-            .accessibilityLabel("Actions for \(item.info.name)")
-        }.padding(.vertical, 6)
           #if os(macOS)
             .onDrag {
               let provider = NSItemProvider()
@@ -421,23 +415,54 @@ struct RelayView: View {
               }
               return provider
             }
-            .contextMenu { itemActions(item) }
+          #endif
+          Spacer()
+          #if os(macOS)
+            if item.info.kind == "file" {
+              macFileActions(item)
+                .buttonStyle(.borderless).controlSize(.small).labelStyle(.iconOnly).fixedSize()
+                .disabled(model.busy)
+            }
+          #endif
+          Menu {
+            itemActions(item)
+          } label: {
+            Image(systemName: "ellipsis")
+          }.menuStyle(.borderlessButton)
+            .accessibilityLabel("Actions for \(item.info.name)")
+        }.padding(.vertical, 6)
+          #if os(macOS)
+            .contextMenu {
+              if item.info.kind == "file" {
+                macFileActions(item)
+                Divider()
+              }
+              itemActions(item)
+            }
           #endif
           .accessibilityElement(children: .contain)
       }.listStyle(.plain)
     }
   }
+  #if os(macOS)
+    @ViewBuilder private func macFileActions(_ item: RelayItem) -> some View {
+      Button {
+        model.perform { try await model.copyFile(item) }
+      } label: {
+        Label("Copy File", systemImage: "doc.on.doc")
+      }.help("Copy \(item.info.name) to the clipboard")
+      Button {
+        model.perform { try await model.saveToDownloads(item) }
+      } label: {
+        Label("Save to Downloads", systemImage: "arrow.down.to.line")
+      }.help("Save \(item.info.name) to Downloads")
+    }
+  #endif
   @ViewBuilder private func itemActions(_ item: RelayItem) -> some View {
     Button("Preview") { model.perform { previewURL = try await model.download(item) } }
     if item.info.kind == "text" {
       Button("Copy text") { model.perform { try await model.copy(item) } }
     }
-    #if os(macOS)
-      if item.info.kind == "file" {
-        Button("Copy file") { model.perform { try await model.copyFile(item) } }
-          .disabled(model.busy)
-      }
-    #endif
     Button("Save a copy") {
       model.perform {
         let url = try await model.download(item)

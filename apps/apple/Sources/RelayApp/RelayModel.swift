@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -24,7 +24,8 @@ import UniformTypeIdentifiers
   var queued = 0
   var connected = false
   var target = "owner"
-  var server = UserDefaults.standard.string(forKey: "relay-server") ?? "http://127.0.0.1:4318"
+  var server =
+    UserDefaults.standard.string(forKey: "relay-server") ?? "http://127.0.0.1:4318"
   var deviceName = {
     #if os(macOS)
       Host.current().localizedName ?? "My Mac"
@@ -40,10 +41,12 @@ import UniformTypeIdentifiers
   @ObservationIgnored private var clipboardObserver: AnyCancellable?
   init() {
     // One observer per model, even when the menu bar and inbox window are both visible.
-    clipboardObserver = NotificationCenter.default.publisher(for: Notification.Name("RelaySendClipboard"))
-      .sink { [weak self] _ in
-        self?.perform { [weak self] in try await self?.sendClipboard() }
-      }
+    clipboardObserver = NotificationCenter.default.publisher(
+      for: Notification.Name("RelaySendClipboard")
+    )
+    .sink { [weak self] _ in
+      self?.perform { [weak self] in try await self?.sendClipboard() }
+    }
     loop = Task { [weak self] in
       while !Task.isCancelled {
         await self?.tick()
@@ -227,6 +230,27 @@ import UniformTypeIdentifiers
       }
       notice = "File copied to clipboard."
     }
+    /// Save directly to Downloads, choosing a numbered filename instead of replacing a file.
+    func saveToDownloads(_ item: RelayItem) async throws {
+      let source = try await download(item)
+      let manager = FileManager.default
+      let directory = try manager.url(
+        for: .downloadsDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+      var destination = directory.appendingPathComponent(source.lastPathComponent)
+      var number = 2
+      while true {
+        do {
+          try manager.copyItem(at: source, to: destination)
+          notice = "Saved to Downloads."
+          return
+        } catch let error as CocoaError where error.code == .fileWriteFileExists {
+          let stem = source.deletingPathExtension().lastPathComponent
+          let suffix = source.pathExtension.isEmpty ? "" : ".\(source.pathExtension)"
+          destination = directory.appendingPathComponent("\(stem) (\(number))\(suffix)")
+          number += 1
+        }
+      }
+    }
   #endif
   func download(_ item: RelayItem) async throws -> URL {
     guard let identity else { throw RelayError.message("Connect first.") }
@@ -308,8 +332,11 @@ import UniformTypeIdentifiers
     var launchAtLogin: Bool { SMAppService.mainApp.status == .enabled }
     func setLaunchAtLogin(_ enabled: Bool) {
       do {
-        if enabled { try SMAppService.mainApp.register() }
-        else { try SMAppService.mainApp.unregister() }
+        if enabled {
+          try SMAppService.mainApp.register()
+        } else {
+          try SMAppService.mainApp.unregister()
+        }
       } catch { self.error = error.localizedDescription }
     }
   #endif

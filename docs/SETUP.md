@@ -75,7 +75,9 @@ On a physical iPhone, use your HTTPS service URL, not `127.0.0.1`. Loopback on a
 
 The Mac menu panel fits its content instead of using a fixed tall window. It shows up to six file rows before scrolling, a layout choice to keep it within the screen. Its text field starts on one line and grows to four visible lines before scrolling; this does not limit the amount of text that can be sent. The separate inbox window remains resizable.
 
-For files and images, choose **Copy file** from the item's actions menu, then paste into Finder or another app that accepts files. The same actions are available by right-clicking an item on Mac. Relay decrypts the file into its existing private temporary preview cache and places its local file URL on the clipboard. That source remains temporary and can be cleaned up when the inbox item expires or is deleted; paste it into a destination to keep a separate copy. Text items retain **Copy text**.
+Mac file and image rows have direct **Copy File** and **Save to Downloads** icon buttons; hover to see their labels. Copy the file, then paste into Finder or another app that accepts files. Save to Downloads writes immediately without a dialog and uses a numbered filename when the name already exists. The app has sandbox permission for the Downloads folder. Preview, Save a Copy for another location, and Delete remain in the menu; right-click also offers the quick actions.
+
+For copying, Relay decrypts the file into its existing private temporary preview cache and places its local file URL on the clipboard. That source remains temporary and can be cleaned up when the inbox item expires or is deleted; paste it into a destination to keep a separate copy. Text items retain **Copy text**.
 
 On iPhone, the native tab bar has **Send**, **Inbox**, and **Connections**. Send opens by default, keeps its draft when switching tabs, and contains the text editor, file picker, clipboard, and destination selector. Inbox contains received items and their preview, copy, export, and share actions. Connections contains device approvals and recovery settings. The Mac keeps its combined send/inbox view and top selector.
 
