@@ -1,0 +1,10 @@
+.git
+node_modules
+data
+.verification
+test-results
+playwright-report
+apps/apple
+apps/web/dist
+.env
+.env.*

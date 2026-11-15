@@ -6,3 +6,12 @@ node_modules/
 dist/
 .build/
 DerivedData/
+
+data/
+.verification/
+test-results/
+playwright-report/
+apps/apple/build*/
+apps/apple/.swiftpm/
+*.xcuserstate
+xcuserdata/

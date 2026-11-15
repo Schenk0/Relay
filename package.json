@@ -1,0 +1,50 @@
+{
+  "name": "relay",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n service,web 'pnpm dev:server' 'pnpm dev:web'",
+    "dev:server": "tsx watch apps/server/main.ts",
+    "dev:web": "vite apps/web --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build apps/web",
+    "start": "tsx apps/server/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "apple:generate": "xcodegen generate --spec apps/apple/project.yml",
+    "test:browser": "playwright test",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.ts\" \"tests/**/*.ts\" \"scripts/*.ts\" \"*.{json,ts,yaml}\"",
+    "test:service": "tsx --test tests/service.test.ts"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/static": "^10.1.11",
+    "fastify": "^5.6.2",
+    "idb-keyval": "^6.2.2",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsx": "^4.20.6",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

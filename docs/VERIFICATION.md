@@ -1,0 +1,39 @@
+# Verification
+
+Checked locally on 15 November 2026. No production service, database, or daily-driver channel was used.
+
+## Automated
+
+- TypeScript strict checks and Vite production build pass.
+- Service tests pass for authenticated encrypted transfers, session approval and isolation, transfers in both directions, credential revocation, duplicate retries, expiration, tampering, file-size boundaries, and restart persistence.
+- The service accepts a 25 MiB plaintext envelope and rejects one byte above the allowed ciphertext size.
+- Swift CryptoKit and Web Crypto decrypt each other's output and derive identical P-256/HKDF pairing keys.
+- Playwright uses separate personal and remote browser contexts. It approves the remote session, proves the personal item stays hidden there, downloads a binary file byte for byte, receives text back, previews an image, retries an offline queue, verifies mobile layout, and checks revocation.
+- `pnpm audit --prod` reports no known vulnerabilities at the time checked. This is a dependency check, not an application security audit.
+- Xcode builds succeed for the Mac app, iPhone simulator app, and both embedded share extensions.
+
+## Native workflow checks
+
+An existing shared iPhone simulator on the local Mac was reused. The simulator was initially shut down. Its machine-specific selection is recorded in the ignored `.verification/device.json`; no simulator was created or erased.
+
+Verified on the iOS 27.0 simulator:
+
+- Personal-device pairing through the app UI, with approval from a separately authenticated owner client.
+- Shared-Keychain credential persistence between the iPhone app and its share extension.
+- Web client to iPhone text decryption and inbox display.
+- iPhone to web text transfer, with matching decrypted content.
+- Safari → Share → Relay, successful upload of the page URL, and matching decryption on the receiving client.
+- Photos → Share → Relay using the final extension, with the received PNG verified byte for byte against the source test image.
+- The share extension renders in dark mode and loads multi-file content one provider at a time.
+
+## Remaining external verification
+
+Physical-iPhone installation and the signed Mac distribution flow need your Apple team and provisioning. The Mac app and extension have been compiled; the full signed Mac UI, global shortcut, incoming panel, and drag-out workflow have not been driven end to end. Compilation is not evidence that those OS integrations have been exercised.
+
+No public HTTPS service has been deployed. Internet routing, DNS, certificate issuance, hosting cost, and transfers across actual different networks remain deployment checks. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol.
+
+Docker Compose files are supplied, but an active Docker daemon was unavailable on this machine, so the container image was not built or run here. The same application build and service were tested directly on Node.
+
+APNs and iPhone background delivery are not implemented. Phone receipt is reconciled when the app opens. The cryptographic format is interoperable, but the product has not undergone independent security review or adversarial penetration testing.
+
+The automation session and Device panel were closed after testing, the previously stopped shared simulator was shut down again, and the isolated verification service was stopped. Existing simulator data and the test installation were preserved. One generated PNG was added to Photos for the share test; existing photos were left intact.
