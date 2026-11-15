@@ -34,6 +34,8 @@ The installed Mac UI successfully paired to the public inbox, decrypted its meta
 
 The global clipboard shortcut's Carbon registration and event-handler installation both returned success. Synthetic input through the computer-use tool did not trigger that global handler, so a physical-keyboard check is still required. Incoming-panel timing, native Mac drag-out, Mac share-sheet integration, and the launch-at-login setting have not been fully driven end to end. The initial simulator share-sheet checks above remain the evidence for the iOS extension; the current simulator runner falls back to XCTest with limited access to remote extension UI.
 
+The mobile layout was subsequently split into native Send, Inbox, and Connections tabs. On the reused Shared iPhone 17 Pro simulator, all three tabs opened, Inbox had no composer, and an unsent draft survived switching through Inbox and Connections back to Send. The Send editor's Done button dismissed the software keyboard and made the tab bar accessible again. iOS simulator, signed iPhone Release, and Mac Release builds passed. The updated signed iPhone app was installed wirelessly with its existing data preserved. The Mac retains its original combined inbox/composer layout.
+
 The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
 
 The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.

@@ -73,7 +73,9 @@ The connected iPhone can be installed with `xcrun devicectl device install app -
 
 On a physical iPhone, use your HTTPS service URL, not `127.0.0.1`. Loopback on a simulator can reach the Mac's local service for testing. The Mac opens its inbox on launch and also provides a menu bar inbox, drag in/out, file picker, clipboard send, save, preview, and sharing. Its global clipboard shortcut is Control-Option-Command-R while Relay is running. **Connections → Mac → Open Relay at login** is optional and initially off. Quit Relay from the inbox footer or application menu.
 
-On iPhone, share text, links, images, or files through **Share → Relay**. If Relay is hidden, enable it in the share sheet's More list. The extension queues encrypted content before attempting upload. If interrupted or offline, open Relay to finish. The main app supports receiving, copy, Files export, previews, and onward sharing.
+On iPhone, the native tab bar has **Send**, **Inbox**, and **Connections**. Send opens by default, keeps its draft when switching tabs, and contains the text editor, file picker, clipboard, and destination selector. Inbox contains received items and their preview, copy, export, and share actions. Connections contains device approvals and recovery settings. The Mac keeps its combined send/inbox view and top selector.
+
+Share text, links, images, or files through **Share → Relay**. If Relay is hidden, enable it in the share sheet's More list. The extension queues encrypted content before attempting upload. If interrupted or offline, open Relay to finish. The main app supports receiving, copy, Files export, previews, and onward sharing.
 
 The Mac share extension uses the same shared Keychain and outbox container as the Mac app. A correctly signed app and extension are required for shared-container access. Simulator builds used for Keychain verification must also be signed; `CODE_SIGNING_ALLOWED=NO` verifies compilation only. Incoming iPhone items refresh when the native app opens; APNs notifications and background receipt remain unimplemented.
 

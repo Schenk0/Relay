@@ -43,6 +43,7 @@ struct RelayView: View {
   @Environment(\.scenePhase) private var phase
   @Environment(\.openWindow) private var openWindow
   @State private var text = ""
+  @FocusState private var composing: Bool
   @State private var code = ""
   @State private var tab = 0
   @State private var importing = false
@@ -53,54 +54,144 @@ struct RelayView: View {
   @State private var saving = false
   @State private var saveName = "Shared file"
   var body: some View {
-    NavigationStack {
-      VStack(spacing: 0) {
-        if let error = model.error {
-          HStack {
-            Text(error).font(.callout).foregroundStyle(.red)
-            Spacer()
-            Button {
-              model.error = nil
-            } label: {
-              Image(systemName: "xmark")
-            }.buttonStyle(.plain)
-          }.padding().background(.red.opacity(0.08))
+    platformContent
+      .fileImporter(
+        isPresented: $importing,
+        allowedContentTypes: importingRecovery ? [.json] : [.item],
+        allowsMultipleSelection: !importingRecovery
+      ) { result in
+        model.perform {
+          let urls = try result.get()
+          if importingRecovery {
+            if let url = urls.first { try model.restore(url) }
+          } else {
+            try await model.sendFiles(urls)
+          }
         }
-        if let notice = model.notice {
-          HStack {
-            Text(notice).font(.callout)
-            Spacer()
-            Button {
-              model.notice = nil
-            } label: {
-              Image(systemName: "xmark")
-            }.buttonStyle(.plain)
-          }.padding()
-        }
-        if model.identity == nil {
-          onboarding
-        } else {
-          Picker("Section", selection: $tab) {
-            Text("Inbox").tag(0)
-            Text("Connections").tag(1)
-          }.pickerStyle(.segmented).padding()
-          if tab == 0 { inbox } else { connections }
-        }
-        #if os(macOS)
-          Divider()
-          HStack {
-            Button("Open inbox window") {
-              openWindow(id: "inbox")
-              NSApp.activate(ignoringOtherApps: true)
-            }
-            Spacer()
-            Button("Quit Relay") { NSApp.terminate(nil) }
-          }.font(.callout).padding(12)
-        #endif
       }
-      .navigationTitle("Relay")
-      .toolbar {
-        if model.identity != nil {
+      .fileExporter(
+        isPresented: $saving, document: fileToSave, contentType: .data, defaultFilename: saveName
+      ) { result in
+        if case .failure(let error) = result { model.error = error.localizedDescription }
+      }
+      .quickLookPreview($previewURL)
+      #if os(iOS)
+        .sheet(item: $sharingURL) { url in ActivitySheet(url: url.url) }
+      #endif
+      .onChange(of: phase) { _, value in if value == .active { Task { await model.tick() } } }
+      #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RelayShowInbox"))) {
+          _ in
+          openWindow(id: "inbox")
+          NSApp.activate(ignoringOtherApps: true)
+        }
+      #endif
+      .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
+        guard !providers.isEmpty, !model.busy else { return false }
+        // Keep the whole drop in one operation; separate callbacks can hit the busy guard.
+        model.perform {
+          var urls: [URL] = []
+          for provider in providers {
+            let url: URL = try await withCheckedThrowingContinuation { continuation in
+              _ = provider.loadObject(ofClass: URL.self) { url, error in
+                if let error {
+                  continuation.resume(throwing: error)
+                } else if let url {
+                  continuation.resume(returning: url)
+                } else {
+                  continuation.resume(
+                    throwing: RelayError.message("Could not read the dropped file."))
+                }
+              }
+            }
+            urls.append(url)
+          }
+          try await model.sendFiles(urls)
+        }
+        return true
+      }
+  }
+  @ViewBuilder private var platformContent: some View {
+    #if os(iOS)
+      if model.identity == nil {
+        NavigationStack {
+          VStack(spacing: 0) {
+            messages
+            onboarding
+          }.navigationTitle("Relay")
+        }
+      } else {
+        TabView(selection: $tab) {
+          mobileScreen("Send") {
+            ScrollView { composer }.scrollDismissesKeyboard(.interactively)
+            connectionStatus
+          }
+          .tabItem { Label("Send", systemImage: "paperplane") }
+          .tag(0)
+
+          mobileScreen("Inbox") {
+            receivedItems
+            connectionStatus
+          }
+          .tabItem { Label("Inbox", systemImage: "tray") }
+          .tag(1)
+
+          mobileScreen("Connections") { connections }
+            .tabItem { Label("Connections", systemImage: "link") }
+            .tag(2)
+        }
+      }
+    #else
+      NavigationStack {
+        VStack(spacing: 0) {
+          messages
+          if model.identity == nil {
+            onboarding
+          } else {
+            Picker("Section", selection: $tab) {
+              Text("Inbox").tag(0)
+              Text("Connections").tag(1)
+            }.pickerStyle(.segmented).padding()
+            if tab == 0 { inbox } else { connections }
+          }
+          #if os(macOS)
+            Divider()
+            HStack {
+              Button("Open inbox window") {
+                openWindow(id: "inbox")
+                NSApp.activate(ignoringOtherApps: true)
+              }
+              Spacer()
+              Button("Quit Relay") { NSApp.terminate(nil) }
+            }.font(.callout).padding(12)
+          #endif
+        }
+        .navigationTitle("Relay")
+        .toolbar {
+          if model.identity != nil {
+            ToolbarItem {
+              Button {
+                model.perform { await model.tick() }
+              } label: {
+                Image(systemName: "arrow.clockwise")
+              }.accessibilityLabel("Refresh")
+            }
+          }
+        }
+      }
+    #endif
+  }
+  #if os(iOS)
+    private func mobileScreen<Content: View>(
+      _ title: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+      NavigationStack {
+        VStack(spacing: 0) {
+          messages
+          content()
+        }
+        .navigationTitle(title)
+        .toolbar {
           ToolbarItem {
             Button {
               model.perform { await model.tick() }
@@ -111,54 +202,29 @@ struct RelayView: View {
         }
       }
     }
-    .fileImporter(
-      isPresented: $importing,
-      allowedContentTypes: importingRecovery ? [.json] : [.item],
-      allowsMultipleSelection: !importingRecovery
-    ) { result in
-      model.perform {
-        let urls = try result.get()
-        if importingRecovery {
-          if let url = urls.first { try model.restore(url) }
-        } else {
-          try await model.sendFiles(urls)
-        }
-      }
+  #endif
+  @ViewBuilder private var messages: some View {
+    if let error = model.error {
+      HStack {
+        Text(error).font(.callout).foregroundStyle(.red)
+        Spacer()
+        Button {
+          model.error = nil
+        } label: {
+          Image(systemName: "xmark")
+        }.buttonStyle(.plain)
+      }.padding().background(.red.opacity(0.08))
     }
-    .fileExporter(
-      isPresented: $saving, document: fileToSave, contentType: .data, defaultFilename: saveName
-    ) { result in if case .failure(let error) = result { model.error = error.localizedDescription }
-    }
-    .quickLookPreview($previewURL)
-    #if os(iOS)
-      .sheet(item: $sharingURL) { url in ActivitySheet(url: url.url) }
-    #endif
-    .onChange(of: phase) { _, value in if value == .active { Task { await model.tick() } } }
-    #if os(macOS)
-      .onReceive(NotificationCenter.default.publisher(for: Notification.Name("RelayShowInbox"))) {
-        _ in
-        openWindow(id: "inbox")
-        NSApp.activate(ignoringOtherApps: true)
-      }
-    #endif
-    .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
-      guard !providers.isEmpty, !model.busy else { return false }
-      // Keep the whole drop in one operation; separate callbacks can hit the busy guard.
-      model.perform {
-        var urls: [URL] = []
-        for provider in providers {
-          let url: URL = try await withCheckedThrowingContinuation { continuation in
-            _ = provider.loadObject(ofClass: URL.self) { url, error in
-              if let error { continuation.resume(throwing: error) }
-              else if let url { continuation.resume(returning: url) }
-              else { continuation.resume(throwing: RelayError.message("Could not read the dropped file.")) }
-            }
-          }
-          urls.append(url)
-        }
-        try await model.sendFiles(urls)
-      }
-      return true
+    if let notice = model.notice {
+      HStack {
+        Text(notice).font(.callout)
+        Spacer()
+        Button {
+          model.notice = nil
+        } label: {
+          Image(systemName: "xmark")
+        }.buttonStyle(.plain)
+      }.padding()
     }
   }
   private var onboarding: some View {
@@ -191,17 +257,42 @@ struct RelayView: View {
   }
   private var inbox: some View {
     VStack(spacing: 0) {
-      VStack(alignment: .leading, spacing: 12) {
-        HStack {
-          Text("Send to").foregroundStyle(.secondary)
-          Picker("Destination", selection: $model.target) {
-            Text("My devices").tag("owner")
-            ForEach(model.devices.filter { $0.scope == "session" && $0.active }) {
-              Text($0.name).tag($0.id)
+      composer
+      Divider()
+      receivedItems
+      connectionStatus
+    }
+  }
+  private var composerHeight: CGFloat {
+    #if os(iOS)
+      160
+    #else
+      70
+    #endif
+  }
+  private var composer: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack {
+        Text("Send to").foregroundStyle(.secondary)
+        Picker("Destination", selection: $model.target) {
+          Text("My devices").tag("owner")
+          ForEach(model.devices.filter { $0.scope == "session" && $0.active }) {
+            Text($0.name).tag($0.id)
+          }
+        }.labelsHidden()
+      }.font(.callout)
+      TextEditor(text: $text).accessibilityLabel("Text or a link")
+        #if os(iOS)
+          .focused($composing)
+          .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+              Spacer()
+              Button("Done") { composing = false }
             }
-          }.labelsHidden()
-        }.font(.callout)
-        TextEditor(text: $text).accessibilityLabel("Text or a link").frame(height: 70).scrollContentBackground(.hidden).overlay(
+          }
+        #endif
+        .frame(height: composerHeight)
+        .scrollContentBackground(.hidden).overlay(
           alignment: .topLeading
         ) {
           if text.isEmpty {
@@ -209,109 +300,113 @@ struct RelayView: View {
               .allowsHitTesting(false)
           }
         }
-        HStack {
-          Button {
-            importingRecovery = false
-            importing = true
-          } label: {
-            Label("Files", systemImage: "plus")
-          }.disabled(model.busy)
-          Button("Clipboard") { model.perform { try await model.sendClipboard() } }.disabled(model.busy)
-          Spacer()
-          Button("Send") {
-            let value = text
-            model.perform {
-              try await model.sendText(value)
-              text = ""
-            }
-          }.buttonStyle(.borderedProminent).disabled(
-            model.busy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        if model.queued > 0 {
-          Button("Discard queued uploads", role: .destructive) {
-            model.perform {
-              if let identity = model.identity {
-                try RelayAPI(identity: identity).discardQueued()
-                await model.refresh()
-              }
+      HStack {
+        Button {
+          importingRecovery = false
+          importing = true
+        } label: {
+          Label("Files", systemImage: "plus")
+        }.disabled(model.busy)
+        Button("Clipboard") { model.perform { try await model.sendClipboard() } }.disabled(
+          model.busy)
+        Spacer()
+        Button("Send") {
+          let value = text
+          model.perform {
+            try await model.sendText(value)
+            text = ""
+          }
+        }.buttonStyle(.borderedProminent).disabled(
+          model.busy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      }
+      if model.queued > 0 {
+        Button("Discard queued uploads", role: .destructive) {
+          model.perform {
+            if let identity = model.identity {
+              try RelayAPI(identity: identity).discardQueued()
+              await model.refresh()
             }
           }
-          Text("\(model.queued) encrypted uploads queued. Retrying while Relay is open.").font(
-            .caption
-          ).foregroundStyle(.secondary)
         }
-      }.padding()
-      Divider()
-      if model.items.isEmpty {
-        ContentUnavailableView(
-          "Your inbox is ready", systemImage: "tray",
-          description: Text("Send from another device. Items expire after 24 hours."))
-      } else {
-        List(model.items) { item in
-          HStack(spacing: 12) {
-            Image(
-              systemName: item.info.kind == "text"
-                ? "doc.text" : item.info.type.hasPrefix("image/") ? "photo" : "doc"
-            ).foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
-              Text(item.info.name).lineLimit(2)
-              Text(Date(timeIntervalSince1970: item.transfer.expiresAt / 1000), style: .relative)
-                .font(.caption).foregroundStyle(.secondary)
+        Text("\(model.queued) encrypted uploads queued. Retrying while Relay is open.").font(
+          .caption
+        ).foregroundStyle(.secondary)
+      }
+    }.padding()
+  }
+  @ViewBuilder private var receivedItems: some View {
+    if model.items.isEmpty {
+      ContentUnavailableView(
+        "Your inbox is ready", systemImage: "tray",
+        description: Text("Send from another device. Items expire after 24 hours."))
+    } else {
+      List(model.items) { item in
+        HStack(spacing: 12) {
+          Image(
+            systemName: item.info.kind == "text"
+              ? "doc.text" : item.info.type.hasPrefix("image/") ? "photo" : "doc"
+          ).foregroundStyle(.secondary)
+          VStack(alignment: .leading, spacing: 4) {
+            Text(item.info.name).lineLimit(2)
+            Text(Date(timeIntervalSince1970: item.transfer.expiresAt / 1000), style: .relative)
+              .font(.caption).foregroundStyle(.secondary)
+          }
+          Spacer()
+          Menu {
+            Button("Preview") { model.perform { previewURL = try await model.download(item) } }
+            if item.info.kind == "text" {
+              Button("Copy text") { model.perform { try await model.copy(item) } }
             }
-            Spacer()
-            Menu {
-              Button("Preview") { model.perform { previewURL = try await model.download(item) } }
-              if item.info.kind == "text" {
-                Button("Copy text") { model.perform { try await model.copy(item) } }
+            Button("Save a copy") {
+              model.perform {
+                let url = try await model.download(item)
+                fileToSave = RelayDocument(data: try Data(contentsOf: url))
+                saveName = url.lastPathComponent
+                saving = true
               }
-              Button("Save a copy") {
-                model.perform {
-                  let url = try await model.download(item)
-                  fileToSave = RelayDocument(data: try Data(contentsOf: url))
-                  saveName = url.lastPathComponent
-                  saving = true
-                }
-              }
-              #if os(iOS)
-                Button("Share") {
-                  model.perform { sharingURL = SharedFile(url: try await model.download(item)) }
-                }
-              #endif
-              Button("Delete from Relay", role: .destructive) {
-                model.perform { try await model.remove(item) }
-              }
-            } label: {
-              Image(systemName: "ellipsis")
-            }.menuStyle(.borderlessButton)
-              .accessibilityLabel("Actions for \(item.info.name)")
-          }.padding(.vertical, 6)
-            #if os(macOS)
-              .onDrag {
-                let provider = NSItemProvider()
-                provider.suggestedName = item.info.kind == "text" ? "Shared text.txt" : item.info.name
-                provider.registerFileRepresentation(
-                  forTypeIdentifier: (UTType(mimeType: item.info.type) ?? .data).identifier, fileOptions: [], visibility: .all
-                ) { completion in
-                  Task { @MainActor in
-                    do { completion(try await model.download(item), true, nil) } catch {
-                      completion(nil, false, error)
-                    }
-                  }
-                  return nil
-                }
-                return provider
+            }
+            #if os(iOS)
+              Button("Share") {
+                model.perform { sharingURL = SharedFile(url: try await model.download(item)) }
               }
             #endif
-            .accessibilityElement(children: .contain)
-        }.listStyle(.plain)
-      }
-      HStack {
-        Circle().fill(model.connected ? .green : .gray).frame(width: 5, height: 5)
-        Text(model.connected ? "Connected" : "Connecting")
-        Spacer()
-        Text("25 MiB per file")
-      }.font(.caption).foregroundStyle(.secondary).padding()
+            Button("Delete from Relay", role: .destructive) {
+              model.perform { try await model.remove(item) }
+            }
+          } label: {
+            Image(systemName: "ellipsis")
+          }.menuStyle(.borderlessButton)
+            .accessibilityLabel("Actions for \(item.info.name)")
+        }.padding(.vertical, 6)
+          #if os(macOS)
+            .onDrag {
+              let provider = NSItemProvider()
+              provider.suggestedName = item.info.kind == "text" ? "Shared text.txt" : item.info.name
+              provider.registerFileRepresentation(
+                forTypeIdentifier: (UTType(mimeType: item.info.type) ?? .data).identifier,
+                fileOptions: [], visibility: .all
+              ) { completion in
+                Task { @MainActor in
+                  do { completion(try await model.download(item), true, nil) } catch {
+                    completion(nil, false, error)
+                  }
+                }
+                return nil
+              }
+              return provider
+            }
+          #endif
+          .accessibilityElement(children: .contain)
+      }.listStyle(.plain)
     }
+  }
+  private var connectionStatus: some View {
+    HStack {
+      Circle().fill(model.connected ? .green : .gray).frame(width: 5, height: 5)
+      Text(model.connected ? "Connected" : "Connecting")
+      Spacer()
+      Text("25 MiB per file")
+    }.font(.caption).foregroundStyle(.secondary).padding()
   }
   private var connections: some View {
     Form {
@@ -367,8 +462,10 @@ struct RelayView: View {
       }
       #if os(macOS)
         Section("Mac") {
-          Toggle("Open Relay at login", isOn: Binding(
-            get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+          Toggle(
+            "Open Relay at login",
+            isOn: Binding(
+              get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
           Text("Send clipboard: Control-Option-Command-R").font(.caption)
         }
       #endif
