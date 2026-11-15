@@ -209,12 +209,9 @@ struct RelayView: View {
         .navigationTitle(title)
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
-            VStack(alignment: .leading, spacing: 2) {
-              HStack(spacing: 4) {
-                Circle().fill(model.connected ? .green : .gray).frame(width: 5, height: 5)
-                Text(model.connected ? "Connected" : "Connecting")
-              }
-              Text("25 MiB per file").foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+              Circle().fill(model.connected ? .green : .gray).frame(width: 5, height: 5)
+              Text(model.connected ? "Connected" : "Connecting")
             }
             .font(.caption2)
             .fixedSize()
