@@ -117,8 +117,8 @@ import UniformTypeIdentifiers
         })
       {
         NotificationCenter.default.post(
-          name: Notification.Name("RelayIncoming"), object: nil,
-          userInfo: ["name": incoming.info.name])
+          name: Notification.Name("RelayIncoming"), object: self,
+          userInfo: ["item": incoming])
       }
       hasLoaded = true
       self.devices = devices

@@ -572,10 +572,69 @@ struct RelayDocument: FileDocument {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
   }
 #else
+  private struct IncomingBanner: View {
+    let model: RelayModel
+    let item: RelayItem
+    let dismiss: () -> Void
+    @State private var working = false
+    @State private var message: String?
+
+    var body: some View {
+      VStack(alignment: .leading, spacing: 6) {
+        HStack {
+          Text(message ?? item.info.name).font(.callout).lineLimit(1)
+            .help(message ?? item.info.name)
+          Spacer(minLength: 4)
+          Button(action: dismiss) { Image(systemName: "xmark") }
+            .buttonStyle(.borderless).accessibilityLabel("Dismiss notification")
+        }
+        HStack {
+          Button(item.info.kind == "text" ? "Copy Text" : "Copy File") {
+            run {
+              if item.info.kind == "text" { try await model.copy(item) }
+              else { try await model.copyFile(item) }
+              return "Copied to clipboard."
+            }
+          }
+          Button("Download") {
+            run {
+              try await model.saveToDownloads(item)
+              return "Saved to Downloads."
+            }
+          }
+          Spacer(minLength: 4)
+          Button("Open") {
+            NotificationCenter.default.post(
+              name: Notification.Name("RelayShowInbox"), object: nil)
+            dismiss()
+          }
+        }.controlSize(.small).disabled(working)
+      }.padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .task(id: working) {
+          guard !working else { return }
+          do {
+            try await Task.sleep(for: .seconds(8))
+            dismiss()
+          } catch {}
+        }
+    }
+
+    private func run(_ action: @escaping @MainActor () async throws -> String) {
+      working = true
+      message = "Working…"
+      Task { @MainActor in
+        do { message = try await action() }
+        catch { message = error.localizedDescription }
+        working = false
+      }
+    }
+  }
+
   @MainActor final class RelayDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: EventHotKeyRef?
     private var shelf: NSPanel?
-    private var hideShelf: Task<Void, Never>?
     func applicationDidFinishLaunching(_ notification: Notification) {
       NotificationCenter.default.addObserver(
         self, selector: #selector(showIncoming(_:)), name: Notification.Name("RelayIncoming"),
@@ -597,13 +656,12 @@ struct RelayDocument: FileDocument {
         }, 1, &event, nil, nil)
     }
     @objc private func showIncoming(_ notification: Notification) {
-      guard let name = notification.userInfo?["name"] as? String, let screen = NSScreen.main else {
-        return
-      }
-      hideShelf?.cancel()
+      guard let model = notification.object as? RelayModel,
+        let item = notification.userInfo?["item"] as? RelayItem, let screen = NSScreen.main
+      else { return }
       shelf?.orderOut(nil)
       let frame = NSRect(
-        x: screen.visibleFrame.maxX - 380, y: screen.visibleFrame.maxY - 110, width: 360, height: 90
+        x: screen.visibleFrame.maxX - 340, y: screen.visibleFrame.maxY - 96, width: 320, height: 76
       )
       let panel = NSPanel(
         contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
@@ -612,25 +670,11 @@ struct RelayDocument: FileDocument {
       panel.isReleasedWhenClosed = false
       panel.hidesOnDeactivate = false
       panel.contentView = NSHostingView(
-        rootView: VStack(alignment: .leading, spacing: 8) {
-          Text(name).font(.callout).lineLimit(1)
-          HStack {
-            Text("Received in Relay").font(.caption).foregroundStyle(.secondary)
-            Spacer()
-            Button("Open") {
-              NotificationCenter.default.post(
-                name: Notification.Name("RelayShowInbox"), object: nil)
-            }
-          }
-        }.padding(16).preferredColorScheme(.dark))
+        rootView: IncomingBanner(model: model, item: item) { [weak panel] in
+          panel?.orderOut(nil)
+        }.preferredColorScheme(.dark))
       panel.orderFrontRegardless()
       shelf = panel
-      hideShelf = Task { [weak self] in
-        do {
-          try await Task.sleep(for: .seconds(8))
-          self?.shelf?.orderOut(nil)
-        } catch {}
-      }
     }
 
   }
