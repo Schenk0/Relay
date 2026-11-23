@@ -112,15 +112,30 @@ import UniformTypeIdentifiers
       let devices = try await api.devices()
       let items = try await api.items(devices: devices)
       guard self.identity?.id == identity.id else { return }
-      let known = Set(self.items.map(\.id))
-      if hasLoaded,
-        let incoming = items.first(where: {
-          !known.contains($0.id) && $0.transfer.author != identity.id
-        })
-      {
+      #if os(macOS)
+        let receiptKey = "relay-received-\(identity.id)"
+        let previous = UserDefaults.standard.stringArray(forKey: receiptKey)
+        let known = Set(previous ?? [])
+        // First connection seeds a baseline; later launches include arrivals while Relay was closed.
+        let incoming =
+          previous == nil
+          ? []
+          : items.filter {
+            !known.contains($0.id) && $0.transfer.author != identity.id
+          }
+        UserDefaults.standard.set(items.map(\.id), forKey: receiptKey)
+      #else
+        let known = Set(self.items.map(\.id))
+        let incoming =
+          hasLoaded
+          ? items.filter {
+            !known.contains($0.id) && $0.transfer.author != identity.id
+          } : []
+      #endif
+      if !incoming.isEmpty {
         NotificationCenter.default.post(
           name: Notification.Name("RelayIncoming"), object: self,
-          userInfo: ["item": incoming])
+          userInfo: ["items": incoming])
       }
       hasLoaded = true
       self.devices = devices
@@ -222,15 +237,20 @@ import UniformTypeIdentifiers
     notice = "Copied to clipboard."
   }
   #if os(macOS)
-    /// Publish the decrypted local file as a file URL so other apps can paste its contents.
     func copyFile(_ item: RelayItem) async throws {
-      let url = try await download(item)
+      try await copyFiles([item])
+    }
+    /// Stage the entire selection before replacing the clipboard, so a failed download leaves it intact.
+    func copyFiles(_ items: [RelayItem]) async throws {
+      var urls: [NSURL] = []
+      for item in items { urls.append(try await download(item) as NSURL) }
       let pasteboard = NSPasteboard.general
       pasteboard.clearContents()
-      guard pasteboard.writeObjects([url as NSURL]) else {
-        throw RelayError.message("Could not copy the file to the clipboard.")
+      guard pasteboard.writeObjects(urls) else {
+        throw RelayError.message("Could not copy the files to the clipboard.")
       }
-      notice = "File copied to clipboard."
+      notice =
+        items.count == 1 ? "File copied to clipboard." : "\(items.count) files copied to clipboard."
     }
     /// Save directly to Downloads, choosing a numbered filename instead of replacing a file.
     func saveToDownloads(_ item: RelayItem) async throws {

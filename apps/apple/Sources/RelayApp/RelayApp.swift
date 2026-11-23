@@ -572,48 +572,99 @@ struct RelayDocument: FileDocument {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
   }
 #else
-  private struct IncomingBanner: View {
+  @MainActor @Observable private final class IncomingBatch {
     let model: RelayModel
-    let item: RelayItem
-    let dismiss: () -> Void
-    @State private var working = false
-    @State private var message: String?
+    var items: [RelayItem]
+    var working = false
+    var message: String?
 
+    init(model: RelayModel, items: [RelayItem]) {
+      self.model = model
+      self.items = items
+    }
+    func append(_ incoming: [RelayItem]) {
+      var known = Set(items.map(\.id))
+      items += incoming.filter { known.insert($0.id).inserted }
+      if !working { message = nil }
+    }
+  }
+
+  private struct IncomingBanner: View {
+    @Bindable var batch: IncomingBatch
+    let dismiss: () -> Void
+    @State private var hovering = false
+
+    private var title: String {
+      if batch.items.count == 1 { return batch.items[0].info.name }
+      let kind = batch.items.allSatisfy { $0.info.kind == "file" } ? "files" : "items"
+      return "\(batch.items.count) \(kind) received"
+    }
+    private var detail: String {
+      batch.message
+        ?? (batch.items.count == 1
+          ? "Received in Relay" : batch.items.map { $0.info.name }.joined(separator: ", "))
+    }
     var body: some View {
-      VStack(alignment: .leading, spacing: 6) {
-        HStack {
-          Text(message ?? item.info.name).font(.callout).lineLimit(1)
-            .help(message ?? item.info.name)
-          Spacer(minLength: 4)
-          Button(action: dismiss) { Image(systemName: "xmark") }
-            .buttonStyle(.borderless).accessibilityLabel("Dismiss notification")
+      HStack(alignment: .top, spacing: 10) {
+        Image(nsImage: NSApp.applicationIconImage)
+          .resizable().frame(width: 32, height: 32).accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 6) {
+          HStack(alignment: .firstTextBaseline) {
+            Text(title).font(.callout.weight(.semibold)).lineLimit(1)
+              .help(title)
+            Spacer(minLength: 4)
+            Button(action: dismiss) { Image(systemName: "xmark").font(.caption) }
+              .buttonStyle(.plain).foregroundStyle(.secondary)
+              .accessibilityLabel("Dismiss notification")
+          }
+          Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            .help(detail)
+          HStack(spacing: 8) {
+            Button(
+              batch.items.count > 1
+                ? "Copy All" : batch.items[0].info.kind == "text" ? "Copy Text" : "Copy File"
+            ) {
+              let items = batch.items
+              run {
+                if items.count == 1 && items[0].info.kind == "text" {
+                  try await batch.model.copy(items[0])
+                } else {
+                  try await batch.model.copyFiles(items)
+                }
+                return items.count == 1 ? "Copied to clipboard." : "\(items.count) files copied."
+              }
+            }
+            Button(batch.items.count > 1 ? "Download All" : "Download") {
+              let items = batch.items
+              run {
+                var saved = 0
+                for item in items {
+                  do {
+                    try await batch.model.saveToDownloads(item)
+                    saved += 1
+                  } catch {
+                    throw RelayError.message(
+                      "Saved \(saved) of \(items.count). \(error.localizedDescription)")
+                  }
+                }
+                return items.count == 1
+                  ? "Saved to Downloads." : "\(saved) files saved to Downloads."
+              }
+            }
+            Spacer(minLength: 0)
+            Button("Open") {
+              NotificationCenter.default.post(
+                name: Notification.Name("RelayShowInbox"), object: nil)
+              dismiss()
+            }
+          }.controlSize(.small).disabled(batch.working)
         }
-        HStack {
-          Button(item.info.kind == "text" ? "Copy Text" : "Copy File") {
-            run {
-              if item.info.kind == "text" { try await model.copy(item) }
-              else { try await model.copyFile(item) }
-              return "Copied to clipboard."
-            }
-          }
-          Button("Download") {
-            run {
-              try await model.saveToDownloads(item)
-              return "Saved to Downloads."
-            }
-          }
-          Spacer(minLength: 4)
-          Button("Open") {
-            NotificationCenter.default.post(
-              name: Notification.Name("RelayShowInbox"), object: nil)
-            dismiss()
-          }
-        }.controlSize(.small).disabled(working)
-      }.padding(12)
+      }.padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .task(id: working) {
-          guard !working else { return }
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .onHover { hovering = $0 }
+        .task(id: batch.working || hovering ? -1 : batch.items.count) {
+          guard !batch.working && !hovering else { return }
           do {
             try await Task.sleep(for: .seconds(8))
             dismiss()
@@ -622,12 +673,13 @@ struct RelayDocument: FileDocument {
     }
 
     private func run(_ action: @escaping @MainActor () async throws -> String) {
-      working = true
-      message = "Working…"
+      batch.working = true
+      batch.message = "Working…"
       Task { @MainActor in
-        do { message = try await action() }
-        catch { message = error.localizedDescription }
-        working = false
+        do { batch.message = try await action() } catch {
+          batch.message = error.localizedDescription
+        }
+        batch.working = false
       }
     }
   }
@@ -635,6 +687,7 @@ struct RelayDocument: FileDocument {
   @MainActor final class RelayDelegate: NSObject, NSApplicationDelegate {
     private var hotkey: EventHotKeyRef?
     private var shelf: NSPanel?
+    private var incomingBatch: IncomingBatch?
     func applicationDidFinishLaunching(_ notification: Notification) {
       NotificationCenter.default.addObserver(
         self, selector: #selector(showIncoming(_:)), name: Notification.Name("RelayIncoming"),
@@ -657,11 +710,19 @@ struct RelayDocument: FileDocument {
     }
     @objc private func showIncoming(_ notification: Notification) {
       guard let model = notification.object as? RelayModel,
-        let item = notification.userInfo?["item"] as? RelayItem, let screen = NSScreen.main
+        let items = notification.userInfo?["items"] as? [RelayItem], !items.isEmpty,
+        let screen = NSScreen.main
       else { return }
+      if let shelf, shelf.isVisible, let incomingBatch, incomingBatch.model === model {
+        incomingBatch.append(items)
+        return
+      }
       shelf?.orderOut(nil)
+      let batch = IncomingBatch(model: model, items: items)
+      incomingBatch = batch
       let frame = NSRect(
-        x: screen.visibleFrame.maxX - 340, y: screen.visibleFrame.maxY - 96, width: 320, height: 76
+        x: screen.visibleFrame.maxX - 370, y: screen.visibleFrame.maxY - 130, width: 350,
+        height: 110
       )
       let panel = NSPanel(
         contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered,
@@ -669,10 +730,14 @@ struct RelayDocument: FileDocument {
       panel.level = .floating
       panel.isReleasedWhenClosed = false
       panel.hidesOnDeactivate = false
+      panel.isOpaque = false
+      panel.backgroundColor = .clear
+      panel.hasShadow = true
+      panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
       panel.contentView = NSHostingView(
-        rootView: IncomingBanner(model: model, item: item) { [weak panel] in
+        rootView: IncomingBanner(batch: batch) { [weak panel] in
           panel?.orderOut(nil)
-        }.preferredColorScheme(.dark))
+        })
       panel.orderFrontRegardless()
       shelf = panel
     }
