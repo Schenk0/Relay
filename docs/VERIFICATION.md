@@ -55,3 +55,13 @@ The Mac had no active Docker daemon for the initial build checks. The image was 
 APNs and iPhone background delivery are not implemented. Phone receipt is reconciled when the app opens. The cryptographic format is interoperable, but the product has not undergone independent security review or adversarial penetration testing.
 
 The automation session and Device panel were closed after testing, the previously stopped shared simulator was shut down again, and the isolated verification service was stopped. Existing simulator data and the test installation were preserved. One generated PNG was added to Photos for the share test; existing photos were left intact.
+
+## Source release preparation
+
+Private deployment notes and generated signing files were removed from the published history while retaining the original iteration sequence. Personal signing and hosting values now live outside Git, with automatic loading and explicit environment overrides.
+
+Release preparation verified configuration defaults and overrides, a full-history privacy/secret scan, TypeScript checks, all service and Swift interoperability tests, the web production build, and the browser transfer flow with isolated data. Signed Mac and iPhone builds passed using private configuration. Unsigned Mac and iOS Simulator builds also passed from a clean clone without that configuration. The configured server URL was checked in the built app's actual Info.plist, and the signed Mac bundle identifier and shared storage entitlements were compared with the installed app. The installed daily-driver apps were not replaced.
+
+The existing service deployment's rendered proxy settings were compared with the healthy running container. The gateway's rendered Caddy configuration was compared as parsed JSON before and after integrating private settings; unrelated hosts and routing behavior were preserved. No service restart was required. Deployment-specific evidence and rollback files remain in private operator storage.
+
+These checks do not replace an independent security audit or imply App Store, TestFlight, or notarized distribution. Repository visibility and public release publication are separate steps.

@@ -13,13 +13,16 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     INFOPLIST_KEY_RelayAppGroup: group.${RELAY_BUNDLE_ID_PREFIX}
     INFOPLIST_KEY_RelayKeychainGroup: $(AppIdentifierPrefix)${RELAY_BUNDLE_ID_PREFIX}.shared
-    INFOPLIST_KEY_RelayDefaultServer: ${RELAY_DEFAULT_SERVER}
     CODE_SIGN_STYLE: Automatic
     REGISTER_APP_GROUPS: YES
     DEVELOPMENT_TEAM: "${RELAY_APPLE_TEAM}"
 targets:
   RelayMac:
     type: application
+    info:
+      path: Config/Mac-Info.plist
+      properties:
+        RelayDefaultServer: ${RELAY_DEFAULT_SERVER}
     platform: macOS
     sources: [Sources/RelayApp, Sources/RelayCore, Assets.xcassets]
     settings:
@@ -48,6 +51,10 @@ targets:
         embed: true
   RelayIOS:
     type: application
+    info:
+      path: Config/IOS-Info.plist
+      properties:
+        RelayDefaultServer: ${RELAY_DEFAULT_SERVER}
     platform: iOS
     sources: [Sources/RelayApp, Sources/RelayCore, Assets.xcassets]
     settings:
