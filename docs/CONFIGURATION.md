@@ -33,4 +33,4 @@ The service host needs only its proxy/deployment settings. The gateway needs onl
 
 `pnpm privacy:check` checks source files for private-network addresses, non-example personal email addresses, and sensitive file types. A private `~/.config/relay/privacy-deny.txt` can list additional identifying strings, one per line. `pnpm privacy:check --history` also checks all reachable commit contents and commit metadata. These checks supplement secret scanning; they do not prove that source contains no sensitive information.
 
-To enable the same check before every push from a checkout, run `git config core.hooksPath .githooks`. CI also checks the full history. Hooks are optional checkout configuration and must be enabled again in a fresh clone.
+To enable the same check before every push from a checkout, run `git config core.hooksPath .githooks`. Hooks are optional checkout configuration and must be enabled again in a fresh clone. Checks and Apple builds run locally; the repository has no GitHub Actions workflows.
