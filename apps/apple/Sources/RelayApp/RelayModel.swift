@@ -25,7 +25,9 @@ import UniformTypeIdentifiers
   var connected = false
   var target = "owner"
   var server =
-    UserDefaults.standard.string(forKey: "relay-server") ?? "http://127.0.0.1:4318"
+    UserDefaults.standard.string(forKey: "relay-server")
+    ?? Bundle.main.object(forInfoDictionaryKey: "RelayDefaultServer") as? String
+    ?? "http://127.0.0.1:4318"
   var deviceName = {
     #if os(macOS)
       Host.current().localizedName ?? "My Mac"

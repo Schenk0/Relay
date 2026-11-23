@@ -14,11 +14,17 @@
     "start": "tsx apps/server/main.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm build",
-    "apple:generate": "xcodegen generate --spec apps/apple/project.yml",
+    "check": "pnpm privacy:check && pnpm test:config && pnpm typecheck && pnpm test && pnpm build",
+    "apple:generate": "node scripts/relay.mjs apple",
     "test:browser": "playwright test",
     "format": "prettier --write \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.ts\" \"tests/**/*.ts\" \"scripts/*.ts\" \"*.{json,ts,yaml}\"",
-    "test:service": "tsx --test tests/service.test.ts"
+    "test:service": "tsx --test tests/service.test.ts",
+    "config:check": "node scripts/relay.mjs config",
+    "deploy:config": "node scripts/relay.mjs compose config --quiet",
+    "deploy:up": "node scripts/relay.mjs compose up -d --build --wait",
+    "gateway:render": "node scripts/relay.mjs gateway",
+    "privacy:check": "node scripts/privacy-check.mjs",
+    "test:config": "node --test tests/local-config.test.mjs"
   },
   "dependencies": {
     "@fastify/rate-limit": "^10.3.0",
@@ -46,5 +52,6 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
-  }
+  },
+  "license": "MIT"
 }

@@ -1,6 +1,6 @@
 # Relay
 
-Move text, links, images, and files between iPhone, Mac, and any browser. Every client sends and receives. Items expire automatically instead of accumulating in your Downloads folder.
+Move text, links, images, and files between iPhone, Mac, and any browser. Every client sends and receives. Items expire from Relay automatically; copies you save to Downloads remain there.
 
 ## Run
 
@@ -20,7 +20,7 @@ pnpm build
 pnpm start
 ```
 
-Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. The live deployment is [relay.example.com](http://127.0.0.1:4318), with the app and data on service-host and public HTTPS through the existing gateway Caddy gateway. Relay's device approval protects the inbox. See [service-host access and operations](docs/service-host.md).
+Open `http://127.0.0.1:4318`. Use HTTPS for real devices and remote machines. See [deployment instructions](docs/DEPLOYMENT.md).
 
 ## What's built
 
@@ -40,7 +40,7 @@ pnpm apple:generate
 open apps/apple/Relay.xcodeproj
 ```
 
-Choose `RelayMac` or `RelayIOS`. The project is configured for the maintainer's the signing team team and defaults to the live public service. Signed Release builds are installed on his Mac and iPhone; see [native setup and signing](docs/SETUP.md#apple-apps) for updating them or using another team. Approve each native app's displayed code from a trusted device. The Mac clipboard shortcut is Control-Option-Command-R while Relay is running.
+Choose `RelayMac` or `RelayIOS`. For signed builds, set your Apple team and a unique bundle identifier prefix in the optional private configuration file. The generator loads it automatically. Existing installations must keep their identifiers to retain credentials and app data. See [native setup](docs/SETUP.md#apple-apps). The Mac clipboard shortcut is Control-Option-Command-R while Relay is running.
 
 See [complete setup and deployment instructions](docs/SETUP.md).
 
@@ -78,3 +78,15 @@ scripts/           Isolated browser-test server
 ```
 
 The service uses SQLite instead of the outline's proposed Convex backend. It runs without external account setup and can be deployed on your own HTTPS host. Hosting and signing are separate from the source build.
+
+## Private configuration
+
+The source contains generic defaults. Copy `config.example.env` to `~/.config/relay/local.env` once for your own signing, server, and deployment settings. The existing `pnpm apple:generate` command loads it automatically. `pnpm config:check` reports configuration status without printing values. See [configuration](docs/CONFIGURATION.md).
+
+## Contributing and security
+
+See [contribution guidance](CONTRIBUTING.md) and [security reporting](SECURITY.md). Source builds are available; prebuilt signed or notarized Apple releases are not currently distributed.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

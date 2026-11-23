@@ -24,15 +24,9 @@ pnpm start
 
 Open `http://127.0.0.1:4318`. Outside loopback, serve HTTPS. The native apps reject insecure remote service URLs; browser encryption also requires a secure context.
 
-## service-host
+## HTTPS deployment
 
-The live deployment is at `http://127.0.0.1:4318`, accessible without Tailscale. Restore `~/.config/relay/owner-recovery.json` on the maintainer's Mac using the web app's recovery-file picker, then approve additional devices from Connections. The recovery file contains private credentials and the inbox encryption key; do not share it with remote machines. Use temporary-session pairing there instead.
-
-The original private endpoint `https://service.example.ts.net` and its `~/.config/relay/service-host-recovery.json` recovery file remain available on Tailscale. Both URLs reach the same inbox, but browsers store credentials separately for each origin. See [service-host operations](service-host.md).
-
-## Separate public internet service
-
-For a separate public deployment, use a dedicated host and DNS name. The live service-host deployment instead uses the existing gateway gateway described in [service-host operations](service-host.md).
+Use a dedicated host and DNS name. See [deployment](DEPLOYMENT.md) for Docker and private-gateway options.
 
 1. Point your hostname's DNS at the host. Allow inbound TCP 80 and 443.
 2. Copy `.env.example` to `.env`, set `RELAY_DOMAIN`, and set a random `RELAY_SETUP_SECRET` of at least 24 characters. Generate one with `openssl rand -base64 32`.
@@ -54,11 +48,13 @@ pnpm apple:generate
 open apps/apple/Relay.xcodeproj
 ```
 
-Choose `RelayMac` or `RelayIOS`. The project uses the maintainer's existing the signing team team, ``, with automatic signing and app-group registration. For another developer, change `DEVELOPMENT_TEAM` in `project.yml`, then regenerate. The identifiers are `org.example.relay.mac`, `org.example.relay.ios`, and their `.share` extensions. iOS shares `group.org.example.relay`; macOS uses `$(DEVELOPMENT_TEAM).org.example.relay`. Each platform's app and extension use matching app-group and shared Keychain entitlements. Do not change these identifiers on an existing installation without migrating its credentials and queued uploads.
+Choose `RelayMac` or `RelayIOS`. Set `RELAY_APPLE_TEAM`, `RELAY_BUNDLE_ID_PREFIX`, and optionally `RELAY_DEFAULT_SERVER` in `~/.config/relay/local.env`, then run `pnpm apple:generate`. The generator preserves normal environment-variable overrides. Without private settings, it uses `org.example.relay` and a loopback server for unsigned build checks. Use a unique reverse-DNS prefix for your own signed apps.
 
-Both apps default to `http://127.0.0.1:4318`. Browser approval does not automatically connect a native app. Open the native app, select **Connect personal device**, and approve its displayed code from Connections on an existing trusted client.
+The app and share extension derive matching app-group and shared Keychain entitlements from these values. Keep the same prefix and team for updates to an existing installation, otherwise credentials and queued uploads may become inaccessible. Generated Xcode projects, entitlements, and extension plists stay untracked because they can contain private values.
 
-On 15 November 2026, signed builds were installed at `/Applications/Relay.app` on the maintainer's Mac and directly on his already-paired iPhone over the wireless connection. USB was not required for installation. These are Apple Development builds for the maintainer's devices, not App Store, TestFlight, or notarized public distributions. The current signing certificate expires on 11 May 2027; renew the certificate and re-sign before then. The generated profiles expire on 15 November 2027, but do not extend the certificate's validity.
+The native app first uses an already-saved server address, then its configured build default. Browser approval does not automatically connect a native app. Select **Connect personal device** and approve its displayed code from Connections on a trusted client. Physical devices need an HTTPS URL.
+
+Development signing requires your own Apple account, certificate, and device registration. Renew signing assets before their expiry. Source availability does not include App Store, TestFlight, Developer ID signing, or notarization.
 
 To build updated signed versions:
 

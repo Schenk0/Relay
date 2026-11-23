@@ -1,6 +1,6 @@
 # Verification
 
-Initial build checks ran locally on 15 November 2026 without production data. The later authorized service-host deployment is recorded below.
+Initial build checks ran locally on 15 November 2026 without production data. The later authorized the service host deployment is recorded below.
 
 ## Automated
 
@@ -48,23 +48,12 @@ Mac background mode: Relay now declares `LSUIElement` and places its menu-bar sc
 
 Mac notification actions: reduced the banner from 360 × 90 to 320 × 76 points and added direct Copy File/Copy Text and Download controls with success/error feedback. The installed signed Release app showed the compact banner for a disposable binary upload. Computer use clicked Download and Copy File in the banner and observed both success messages without opening the inbox. The Downloads file and the file URL published to the clipboard both matched all 4 KiB of source bytes. The test upload and Downloads file were removed. Mac and iPhone Release builds passed; the installed Mac signature passed deep verification and its process remained in UIElement mode. The iPhone app was not reinstalled. Text copy and error feedback were compiled but not separately driven through the banner.
 
-The live deployment now has public HTTPS at `http://127.0.0.1:4318`, backed by the same service-host service as the private Tailscale endpoint. The implementation uses ordinary authenticated HTTPS requests rather than a local discovery protocol. The public-domain checks below ran from the maintainer's Mac; a separate machine outside the home network has not been driven end to end.
+An existing private deployment has been verified over public HTTPS using authenticated requests. Deployment-specific addresses and operator notes are maintained outside this repository.
 
-The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on service-host.
+The Mac had no active Docker daemon for the initial build checks. The image was subsequently built and run successfully in Docker on the service host.
 
 APNs and iPhone background delivery are not implemented. Phone receipt is reconciled when the app opens. The cryptographic format is interoperable, but the product has not undergone independent security review or adversarial penetration testing.
 
 The automation session and Device panel were closed after testing, the previously stopped shared simulator was shut down again, and the isolated verification service was stopped. Existing simulator data and the test installation were preserved. One generated PNG was added to Photos for the share test; existing photos were left intact.
 
 
-## service-host deployment
-
-The dedicated Docker service was deployed with a read-only root filesystem, unprivileged app user, capability restrictions, persistent database volume, and resource limits. Private Tailscale HTTPS was enabled without changing T3 or SSH routes. Live client checks verified encryption, binary integrity, transfers in both directions, restart persistence, restricted-session isolation, and revocation. Verification transfers were removed, and the personal inbox remains initialized for use with its privately saved recovery file.
-
-## Public domain
-
-On 15 November 2026, the `relay` A record was added in Porkbun through the maintainer's signed-in Opera session. The dashboard showed the new record and all existing records were preserved. Porkbun's authoritative DNS and public resolvers at `1.1.1.1` and `8.8.8.8` returned the configured address.
-
-The existing gateway Caddy gateway was extended with Relay's virtual host and gracefully reloaded after configuration validation. Its existing Home Assistant and API routes returned HTTP 200 before and after; their containers were not restarted. The service-host image was rebuilt with explicit trusted-proxy handling; strict TypeScript checks and all four service tests passed, including a focused test proving that untrusted callers cannot evade request limits by rotating forwarded addresses.
-
-Normal TLS certificate verification passed for `relay.example.com`. An authenticated 1 MiB binary upload and download through that hostname decrypted byte for byte. Unauthenticated listing and download returned HTTP 401, and the verification item was removed. These requests pinned the current public IP while the Mac's resolver retained an earlier negative DNS cache entry; certificate validation remained enabled. No browser security warning was bypassed.

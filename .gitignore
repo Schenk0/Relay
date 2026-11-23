@@ -15,3 +15,10 @@ apps/apple/build*/
 apps/apple/.swiftpm/
 *.xcuserstate
 xcuserdata/
+
+# XcodeGen outputs can contain private signing and server settings.
+apps/apple/Relay.xcodeproj/
+apps/apple/Config/
+.local/
+*.local.env
+*.local.xcconfig
